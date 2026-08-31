@@ -1,0 +1,20 @@
+# deps
+node_modules/
+# builds / artefactos
+dist/
+build/
+artifacts/
+cache/
+typechain-types/
+coverage/
+# entorno y secretos (NUNCA subir claves ni project ids)
+.env
+.env.*
+!.env.example
+# llaves privadas de deploy
+*.key
+# logs / SO / editor
+*.log
+.DS_Store
+.idea/
+.vscode/
