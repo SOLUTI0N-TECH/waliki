@@ -19,7 +19,7 @@ const config: HardhatUserConfig = {
   },
   networks: {
     baseSepolia: {
-      url: RPC_URL ?? "https://sepolia.base.org",
+      url: RPC_URL || "https://sepolia.base.org", // empty string in .env must fall back too
       chainId: 84532,
       accounts: deployerKey ? [deployerKey] : [],
     },
