@@ -87,7 +87,9 @@ waliki/
 - [x] **Paso 2 — contratos**: testeados (7/7) y **DESPLEGADOS en Base Sepolia** (01/09/2026).
   Direcciones en `contracts/deployments/baseSepolia.json` · ABIs en `web/src/contracts/waliki.json`
   (regenerar con `npm run export-abi`). `web/.env` ya tiene el projectId de Reown.
-- [ ] Paso 3 — página de pago (conectar, forzar red, `approve`+`pay`, comprobante)
+- [ ] Paso 3 — página de pago: IMPLEMENTADA (conectar, forzar red, faucet, `approve`+`pay`,
+  comprobante, "ya pagada", cotización con vencimiento); falta la PRUEBA REAL con wallets
+  (escritorio + teléfono). Comercio demo #1 registrado on-chain (script `register-demo-merchant`)
 - [ ] Paso 4 — caja (Bs → QR → `watchContractEvent(saleId)` → verde)
 - [ ] Paso 4b — **app Flutter del demo** (`app/` con FVM): caja solo-lectura (JSON-RPC) + mockups
   navegables de Modo Fácil, Comercio y puntaje
@@ -103,8 +105,11 @@ necesita ETH de gas; el sonido en móvil requiere un gesto previo del usuario.
   chai-as-promised con `hre.viem`). Revert strings en español ASCII (sin acentos). Secretos en
   `contracts/.env`.
 - `web/`: npm resolvió **Vite 8 · React 19 · TS 6 · wagmi v3** (lo fija el adapter de AppKit).
-  ⚠️ wagmi v3 tiene API distinta de v2 — **verificar contra docs oficiales antes del Paso 3**, no
-  asumir idioms de v2.
+- **wagmi v3 — verificado contra docs (01/09)**: `useAccount`→`useConnection`; las escrituras usan
+  `mutate/mutateAsync` (ya NO existe `writeContract` en el retorno); lecturas/receipts sin cambios.
+  Cuenta y red se manejan con los hooks de AppKit: `useAppKitAccount` / `useAppKitNetwork`
+  (`switchNetwork(walikiNetwork)`). Config en `web/src/lib/appkit.ts`; ABIs tipados generados en
+  `web/src/contracts/waliki.ts` (regenerar con `npm run export-abi`).
 
 ## Contexto de mercado y decisiones (para el pitch — NO es alcance del MVP)
 - **Ago-2026**: bancos venden USDT desde sus apps (Bisa, Unión/Yasta, FIE); Peso + Yango Food cobran
