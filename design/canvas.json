@@ -1,0 +1,23 @@
+{
+  "artboards": [
+    { "file": "Pin.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "title": "1 · PIN del cajero" },
+    { "file": "Main.dc.html", "x": 470, "y": 0, "w": 390, "h": 844, "title": "2 · Inicio del comercio" },
+    { "file": "Cobrar.dc.html", "x": 940, "y": 0, "w": 390, "h": 844, "title": "3 · Cobrar" },
+    { "file": "QR.dc.html", "x": 1410, "y": 0, "w": 390, "h": 844, "title": "4 · QR de cobro" },
+    { "file": "Verde.dc.html", "x": 1880, "y": 0, "w": 390, "h": 844, "title": "5 · Pantalla Verde" },
+    { "file": "Historial.dc.html", "x": 2350, "y": 0, "w": 390, "h": 844, "title": "6 · Historial" },
+    { "file": "Billetera.dc.html", "x": 0, "y": 1030, "w": 390, "h": 844, "title": "F2 · Crear billetera" },
+    { "file": "Saldo.dc.html", "x": 470, "y": 1030, "w": 390, "h": 844, "title": "F2 · Comprar saldo" },
+    { "file": "Tienda.dc.html", "x": 1120, "y": 1030, "w": 390, "h": 844, "title": "F3 · Tienda" },
+    { "file": "Pedido.dc.html", "x": 1590, "y": 1030, "w": 390, "h": 844, "title": "F3 · Pedido y delivery" },
+    { "file": "Puntaje.dc.html", "x": 2240, "y": 1030, "w": 390, "h": 844, "title": "T · Puntaje y adelanto" }
+  ],
+  "annotations": [
+    { "id": "fase-1", "x": 0, "y": -160, "w": 460, "text": "FASE 1 — LA CAJA (funcional en el demo del Buildathon)\nFlujo: PIN del cajero → Inicio → Cobrar → QR → Pantalla Verde → Historial.\nEl cliente paga en la página web que abre el QR (no necesita la app)." },
+    { "id": "fase-2", "x": 0, "y": 880, "w": 400, "text": "FASE 2 — MODO FÁCIL (mockup navegable)\nBilletera propia sin frase semilla + compra de saldo con QR bancario o tarjeta vía rampas asociadas." },
+    { "id": "fase-3", "x": 1120, "y": 880, "w": 400, "text": "FASE 3 — COMERCIO (mockup)\nTienda del negocio + delivery con pago dividido on-chain: el repartidor cobra al instante al confirmar la entrega." },
+    { "id": "transversal", "x": 2240, "y": 880, "w": 380, "text": "TRANSVERSAL (mockup)\nPuntaje sobre ventas verificadas → adelanto de ventas con repago automático." },
+    { "id": "direccion", "x": 2820, "y": 0, "w": 320, "text": "Identidad Waliki: el verde \"Pantalla Verde\" como marca · tipografías Space Grotesk + Karla · patrón de apps de cobro QR (anatomía del género, marca propia — no se copia la identidad visual de QRápido).\nLas pantallas moradas son CONCEPTO (fases 2-3); las de banda naranja son las funcionales del demo." }
+  ],
+  "launch": { "view": "canvas" }
+}

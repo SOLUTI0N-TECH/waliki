@@ -1,32 +1,55 @@
 # Waliki — Guía del proyecto (para Claude Code)
 
-> **Qué es**: sistema de cobro **no-custodial en USDT** para comercios bolivianos. Un punto de venta
-> web cobra en Bs, convierte a USDT, muestra un QR y **verifica el pago leyendo la blockchain**.
-> Proyecto para el **ETH Bolivia Buildathon 2026** (UNIVALLE Tiquipaya, Cochabamba · 11–13 sep).
-> Antes se llamaba *Cobra.bo*; nombre definitivo **Waliki** ("está bien" en aymara).
-> Fuente de verdad del plan: Google Doc "Waliki — Plan de Proyecto" (Borrador v3).
+> **Qué es**: **pasarela de pagos no-custodial en USDT** para negocios bolivianos, construida por
+> **fases-producto**. La Fase 1 (Buildathon) es la caja de cobro web: Bs → USDT → QR → verificación
+> del pago **leyendo la blockchain**. Proyecto para el **ETH Bolivia Buildathon 2026** (UNIVALLE
+> Tiquipaya, Cochabamba · 11–13 sep). Antes *Cobra.bo*; nombre definitivo **Waliki** ("está bien" en aymara).
+> **Fuente de verdad del plan: Google Doc "Waliki — Plan de Proyecto (v4)"** (31/08/2026):
+> https://docs.google.com/document/d/1x8mrS3fLbEtHpH7tkNiNacmAkVJC-GqoY0iuL6lE51g/
 > Este proyecto NO tiene relación de código con `futures-ai-bot` (otro proyecto del mismo usuario).
 
 ## ⚠️ Regla de oro (innegociable)
-**Waliki nunca custodia dinero.** Los USDT viajan directo del pagador a la billetera del comerciante;
-la plataforma solo lee la cadena, sugiere y registra. Ningún módulo debe retener, mover ni intermediar
-fondos. Si algo va a tocar custodia de fondos → **detente y pregunta**.
+**El riel de pagos de Waliki nunca custodia dinero**: los USDT viajan directo del pagador a la
+billetera del comerciante; la plataforma solo lee la cadena, sugiere y registra. Únicas excepciones
+previstas en el plan (NO en la Fase 1): el escrow de la Fase 3 (ejecutado por contrato público) y la
+rampa de la Fase 2 (solo vía socios regulados o registro PSAV, previa consulta legal). Si algún
+código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
 
 ## Convenciones de trabajo
-- **Responder en español** (es el idioma del usuario y del equipo).
-- **Todo el código de Waliki vive en este repo** (`C:\Yo\SolutionTech\waliki`). No mezclar con otros proyectos.
-- Secretos (`.env`, project ids, claves) **nunca** se commitean (ya están en `.gitignore`).
-- El usuario pide análisis/decisión **antes** de implementar; no adelantarse a crear código sin pedido claro.
-  Las preguntas se responden sin editar archivos; ofrecer la edición y esperar el sí.
+- **Responder en español** (idioma del usuario y del equipo). **Comentarios de código en INGLÉS**
+  (regla del usuario, 31/08/2026). UI, docs y mensajes al usuario en español.
+- **Todo el código de Waliki vive en este repo** (`C:\Yo\SolutionTech\waliki`).
+- Secretos (`.env`, claves privadas) **nunca** se commitean (ya en `.gitignore`); jamás pedir la
+  clave privada por chat — el usuario la pega él mismo en `contracts/.env`.
+- El usuario pide análisis/decisión **antes** de implementar; no adelantarse a crear código sin
+  pedido claro. Las preguntas se responden sin editar archivos; ofrecer la edición y esperar el sí.
 
-## Alcance de la Fase 1 (lo del Buildathon) — SIN BACKEND
-Decisión del equipo (Anexo C del Google Doc):
+## Las 3 fases (cada una se entrega como producto funcional, aunque sea MVP)
+1. **Pasarela de cobro** (alcance del Buildathon): la pasarela es **100% web** — el QR es una URL
+   (a futuro, enlace universal). **La app Flutter es la vitrina y SE MUESTRA EN EL BUILDATHON**:
+   modo caja funcional (solo lecturas JSON-RPC: Bs→QR→verde por evento→historial; SIN firma dentro
+   de la app) + secciones de Modo Fácil/Comercio/puntaje como **mockups navegables**. El pago del
+   cliente es siempre por la página web del QR; firma en app y push llegan post-evento.
+2. **Modo Fácil**: billetera propia sin frase semilla (ERC-4337/passkey) + compra de saldo con QR
+   bancario o tarjeta vía rampas asociadas + KYC. **Pendiente ratificar** (v4 §6.3): NO emitir
+   stablecoin propia — recomendación registrada: "pesificación visual" sobre USDT (el BCB ya trabaja
+   su propio "boliviano digital"; emitir una privada colisiona con el ente emisor).
+3. **Comercio**: e-commerce con productos del negocio + deliveries con escrow y **liquidación
+   dividida on-chain** (el repartidor cobra al instante).
+- Transversal: historial verificado → puntaje → microcrédito con repago automático (moat; pendiente
+  ratificación del equipo).
+
+## Alcance del MVP Fase 1 (Buildathon) — SIN BACKEND
 - **Sin backend**: la cadena es la base de datos; el navegador lee los eventos por RPC (viem).
-  Los servicios de experiencia del plan original (WhatsApp, servicio de tasa P2P, PDF) se difieren a la Etapa 2.
-- **Un solo riel: modo contrato** (F3a). El pagador ejecuta `pay()` desde su billetera. El "modo
-  transferencia simple" desde exchange (F3b) se difiere: sin servidor no hay reservas compartidas de
-  "monto único", y además habría que tolerar la comisión que el exchange descuenta del monto enviado.
+  WhatsApp, servicio de tasa P2P y PDF se difieren a la fase comercial post-evento.
+- **Riel único: modo contrato.** El pagador ejecuta `pay()` desde su billetera. El "modo
+  transferencia simple" desde exchange se difiere (necesita servidor: reservas de monto único +
+  tolerancia a la comisión que el exchange descuenta).
 - **Tasa Bs/USDT manual** (la fija el dueño), con cotización que **vence** (~15 min). Congelada en el QR.
+- Extras del MVP: registro on-chain con **candado de la dirección de cobro** · red forzada a Base
+  Sepolia en la página de pago · faucet de tUSDT integrado · trazabilidad (hash/bloque/
+  confirmaciones/explorador) · semáforo de conexión + estado "pendiente de verificación" · kit demo
+  (banner TESTNET, 3 billeteras prefinanciadas, video de respaldo).
 
 ### Roles (clave para entender el diseño)
 | Rol | ¿Conecta wallet? | Qué hace |
@@ -35,69 +58,66 @@ Decisión del equipo (Anexo C del Google Doc):
 | **Cajero** | No — solo PIN | Ingresa Bs → muestra QR → espera la pantalla verde. Ve todo, no toca nada |
 | **Cliente** | Sí | Escanea el QR → conecta → `approve` + `pay` → recibe su comprobante |
 
-Principio: **la wallet se conecta SOLO para firmar** (pagar o registrarse). Para mirar/recibir, nunca
-(leer la cadena no requiere permisos; recibir tampoco requiere estar conectado).
-
-### Funcionalidades que se agregan a la Fase 1
-Registro on-chain del comerciante (candado de la dirección de cobro: un empleado no puede desviar los
-pagos) · cotización con vencimiento · red forzada a Base Sepolia en la página de pago · faucet de tUSDT
-integrado en la página de pago (demo) · trazabilidad de cada verde (hash/bloque/confirmaciones/enlace al
-explorador) · semáforo de salud de conexión en la caja + estado "pendiente de verificación" · kit demo
-(banner TESTNET, 3 billeteras prefinanciadas, video de respaldo).
+Principio: **la wallet se conecta SOLO para firmar** (pagar o registrarse). Para mirar/recibir, nunca.
 
 ## Stack
-- **Contratos**: Solidity + **Hardhat** · red **Base Sepolia** (chainId **84532**, RPC `https://sepolia.base.org`)
-- **Web**: **Vite + React + TypeScript** · **wagmi + viem + Reown AppKit** (MetaMask extensión + móvil vía deep link)
-- **QR** = la URL de la página de pago (`/pay/:saleId`)
-- **App móvil** (Flutter + Reown AppKit): después del Buildathon, no en la Fase 1
+- **Contratos**: Solidity 0.8.28 + **Hardhat 2** + OpenZeppelin 5 · red **Base Sepolia** (chainId
+  **84532**, RPC `https://sepolia.base.org`)
+- **Web**: **Vite + React + TypeScript** · **wagmi + viem + Reown AppKit** (MetaMask extensión +
+  móvil vía deep link) · **QR** = URL de `/pay/:saleId`
+- **App Waliki** (Flutter vía **FVM**, última estable ~3.47.x — regla del usuario 31/08): en el demo
+  del Buildathon con caja solo-lectura (JSON-RPC) + mockups; firma en app (Reown AppKit Flutter) y
+  push, post-evento
 
 ## Estructura del monorepo
 ```
 waliki/
-  contracts/   # Hardhat: TestUSDT (ERC-20, 6 decimales, faucet con cooldown)
-               #          WalikiRouter (registerMerchant, pay(merchantId, saleId, amount), evento PaymentReceived)
-  web/         # Vite + React: /caja (cobro Bs→QR→verde) y /pay/:saleId (página de pago del cliente)
+  contracts/   # TestUSDT (ERC-20, 6 dec, faucet cooldown 1h, 100 tUSDT por claim)
+               # WalikiRouter (registerMerchant/setPayoutAddress/pay + evento PaymentReceived;
+               #   saleId bytes32; paidAmount evita doble pago; CEI; SafeERC20)
+               # test/waliki.test.ts (7 tests) · scripts/deploy.ts → deployments/<red>.json (SÍ se commitea)
+  web/         # /caja (cobro Bs→QR→verde) y /pay/:saleId (página de pago del cliente)
+  design/      # mockups de la app (.dc.html + canvas.json) — fuente del canvas de Claude Design
   packages/    # (futuro) ABI + tipos compartidos
-  docs/        # PASO-0.md (checklist de cuentas) y siguientes
+  docs/        # PASO-0.md (checklist de cuentas)
 ```
 
-## Plan del spike inicial (tarea: conexión con MetaMask)
-El spike es **web, no Flutter** (la página de pago la abre el cliente al escanear un QR → tiene que ser
-una URL en su navegador).
-- **Paso 0 — Cuentas**: Reown projectId, MetaMask (PC + 2 teléfonos), ETH de Base Sepolia de faucet
-  para ~3 direcciones, (opcional) RPC propio. Detalle en `docs/PASO-0.md`.
-- **Paso 1 — Repo**: scaffolding de `contracts/` (Hardhat) y `web/` (Vite).
-- **Paso 2 — Contratos**: `TestUSDT` + `WalikiRouter`; test en red local → deploy a Base Sepolia.
-- **Paso 3 — Página de pago**: conectar wallet, forzar red, `approve` + `pay`, mostrar hash → recibo.
-- **Paso 4 — Caja**: monto Bs → QR → `watchContractEvent(saleId)` → pantalla verde.
-- **Paso 5 — Prueba real**: deploy a Vercel, pago desde un teléfono que escanea el QR.
+## Estado del plan (spike Fase 1)
+- [x] Paso 0 — cuentas · [x] Paso 1 — scaffolding
+- [x] **Paso 2 — contratos**: escritos y testeados (7/7 en red local). **Deploy a Base Sepolia
+  PENDIENTE**: el usuario pone `PRIVATE_KEY` en `contracts/.env` (ver `.env.example`) y se corre
+  `npm run deploy:baseSepolia` → guarda `deployments/baseSepolia.json`.
+- [ ] Paso 3 — página de pago (conectar, forzar red, `approve`+`pay`, comprobante)
+- [ ] Paso 4 — caja (Bs → QR → `watchContractEvent(saleId)` → verde)
+- [ ] Paso 4b — **app Flutter del demo** (`app/` con FVM): caja solo-lectura (JSON-RPC) + mockups
+  navegables de Modo Fácil, Comercio y puntaje
+- [ ] Paso 5 — Vercel + pago real desde teléfono · kit demo + video + ensayo del pitch
 
-**Criterios de "hecho" del spike**: conectar en escritorio Y en teléfono desde el QR · red forzada a
-Base Sepolia (`switchChain`/`addChain`) · `approve` + `pay` reales · verde disparado por el EVENTO (no
-por "salió la tx") · manejo del rechazo del usuario y del cambio de cuenta.
-Trampas conocidas: USDT real necesita 2 tx (`approve` + `pay`); el pagador necesita ETH de gas en el
-teléfono; el sonido en móvil requiere un gesto previo del usuario.
+**Criterios de "hecho"**: conectar en escritorio Y teléfono desde el QR · red forzada
+(`switchChain`/`addChain`) · `approve` + `pay` reales · verde disparado por el EVENTO · manejo del
+rechazo y del cambio de cuenta. Trampas conocidas: USDT necesita 2 tx (`approve`+`pay`); el pagador
+necesita ETH de gas; el sonido en móvil requiere un gesto previo del usuario.
 
-## Contexto de negocio (para el pitch — NO es alcance de la Fase 1)
-- **Por qué existe**: en Bolivia (devaluación + inflación desde el fin del cambio fijo en jun-2026) el
-  comercio ya cobra en USDT pero no tiene "caja registradora" para ese riel. Dolores: comprobantes de
-  pago falsificados (capturas), caja indelegable, sin contabilidad. Waliki es la caja de ese riel.
-- **Idea que da el moat** (visión, láminas del pitch): "adelanto de ventas con repago automático" — las
-  ventas verificadas on-chain construyen un historial → puntaje → adelanto en USDT desde un pool → el
-  contrato deriva un % de cada venta futura al pool hasta amortizar. El cobro es la infraestructura de
-  datos y cobranza; el crédito es el negocio (patrón Square Capital / Mercado Pago).
-- **Precedentes validados**: Venezuela = Crixto + Binance Pay en puntos de venta (2025); global =
-  Shopify + Stripe + Coinbase con USDC on-chain en Base (2025). Ningún jugador global opera Bolivia.
-- **Regulación**: pagos con activos virtuales permitidos (BCB 2024); marco 2025 = DS 5384 + ASFI
-  540/2025 (Circular 885/2025, fintech/PSAV) + UIF 19/2025. Posición: software no-custodial, sin fiat
-  ni custodia; el registro PSAV y KYC entran recién en la Etapa 2. Consultar antes de comercializar.
+## Notas técnicas
+- `contracts/`: Hardhat 2 + `@nomicfoundation/hardhat-toolbox-viem` (tests mocha/chai +
+  chai-as-promised con `hre.viem`). Revert strings en español ASCII (sin acentos). Secretos en
+  `contracts/.env`.
+- `web/`: npm resolvió **Vite 8 · React 19 · TS 6 · wagmi v3** (lo fija el adapter de AppKit).
+  ⚠️ wagmi v3 tiene API distinta de v2 — **verificar contra docs oficiales antes del Paso 3**, no
+  asumir idioms de v2.
 
-## Ideas descartadas (para no reproponerlas)
-- **Ahorro automático en USDT recibiendo pagos en Bs**: descartada por el usuario — cambia de cliente
-  (el que paga en Bs) en vez de reforzar el núcleo; es un on-ramp disfrazado, un nice-to-have.
-- **Apilar capas de "libro" en el PoS del Buildathon** (2º riel completo, PDF server-side, etc.):
-  fuera de la Fase 1 para no inflar las 48 h.
-
-## Estado
-- [x] Nombre y plan (Google Doc v3) · [x] repo inicializado · README + `docs/PASO-0.md` + `.gitignore`
-- [ ] Paso 0 — cuentas · [ ] Paso 2 — contratos · [ ] Paso 3 — página de pago (spike MetaMask)
+## Contexto de mercado y decisiones (para el pitch — NO es alcance del MVP)
+- **Ago-2026**: bancos venden USDT desde sus apps (Bisa, Unión/Yasta, FIE); Peso + Yango Food cobran
+  USDT en 2.000+ restaurantes; el gobierno evalúa USDT en el sistema nacional de pagos; 200+
+  empresas en registro PSAV (RA UIF 019/2025, ASFI 540/2025 + Circular 885/2025, DS 5384).
+  Diferencial de Waliki: **no-custodial + modo empleado ("ningún empleado va a tener la cuenta del
+  jefe") + distribuible a cualquier negocio**.
+- **Decisiones registradas**: pasarela web (el QR es una URL) = arquitectura resuelta (v4 §3) ·
+  **el demo del Buildathon muestra TODO** — pasarela funcional + app (caja funcional solo-lectura +
+  mockups de TODAS las fases) = decisión del fundador 31/08/2026, que REVISA la idea previa de
+  "app post-evento": no volver a proponerla · stablecoin propia = recomendación NO, pendiente
+  ratificación (v4 §6.3) · microcrédito como moat = pendiente ratificación (v4 §8).
+- **Equipo y frentes**: **Daniel** toma el contrato de **permisos/roles** (que otros usuarios
+  revisen transacciones) — coordinar con él antes de tocar `WalikiRouter` · referencia de UI:
+  apps de cobro QR tipo QRápido/Yape Comercio (video de Natalia) — **patrón sí, marca no**;
+  los mockups viven en `design/` (canvas de Claude Design).

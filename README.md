@@ -1,59 +1,64 @@
 # Waliki
 
-**Sistema de cobro no-custodial en USDT para comercios bolivianos.**
-Punto de venta (web) que cobra en Bs, convierte a USDT, muestra un QR y **verifica el pago leyendo
-la blockchain** — sin intermediar los fondos. Proyecto para el **ETH Bolivia Buildathon 2026**
-(UNIVALLE Tiquipaya, Cochabamba · 11–13 de septiembre).
+**Pasarela de pagos no-custodial en USDT para negocios bolivianos.**
+El cliente paga desde su propia billetera, el dinero llega **directo a la billetera del dueño** y la
+plataforma verifica cada venta **leyendo la blockchain**. Proyecto para el **ETH Bolivia Buildathon
+2026** (UNIVALLE Tiquipaya, Cochabamba · 11–13 de septiembre).
 
-> Antes se llamaba *Cobra.bo*. Nombre definitivo: **Waliki** ("está bien" en aymara).
-> Plan completo del equipo: Google Doc "Waliki — Plan de Proyecto" (Borrador v3).
+> **Fuente de verdad del plan**: Google Doc "Waliki — Plan de Proyecto (v4)" (31/08/2026).
+> **Regla de oro**: el riel de pagos **nunca** custodia fondos.
 
-## Regla de oro
-**Waliki nunca custodia dinero.** Los USDT viajan directo del pagador a la billetera del comerciante.
-La plataforma solo lee la cadena, sugiere y registra.
+## Las 3 fases (cada fase = un producto funcional)
 
-## Alcance de la Fase 1 (lo del Buildathon) — SIN BACKEND
-La cadena es la base de datos; el navegador lee los eventos por RPC. Un solo riel: **modo contrato**
-(el pagador ejecuta `pay()` desde su billetera). Tasa Bs/USDT **manual** (la fija el dueño), con
-cotización que vence (~15 min).
+| Fase | Producto | Núcleo |
+|------|----------|--------|
+| **1 — Pasarela de cobro** | La caja USDT, distribuible a cualquier negocio (alcance del Buildathon) | Pasarela **100% web** (el QR es una URL) · la **app Flutter se muestra en el demo**: caja funcional (solo lectura) + mockups de las fases 2–3 |
+| **2 — Modo Fácil** | Billetera propia sin frase semilla + compra de saldo (QR bancario/tarjeta vía rampas asociadas) + KYC | Stablecoin propia: **decisión pendiente** (v4 §6.3; recomendación: "pesificación visual" sobre USDT) |
+| **3 — Comercio** | E-commerce con los productos del negocio + deliveries | Escrow con **liquidación dividida on-chain**: el repartidor cobra al instante |
 
-| Rol | Conecta wallet | Qué hace |
-|-----|----------------|----------|
-| **Dueño** | Sí (una vez) | Registra el comercio on-chain y su dirección de cobro (firma) |
+Capa transversal: ventas verificadas → puntaje comercial → **microcrédito con repago automático**.
+
+## Fase 1 — el flujo de una venta
+
+| Rol | ¿Conecta wallet? | Qué hace |
+|-----|------------------|----------|
+| **Dueño** | Sí (una vez) | Registra el comercio on-chain; su firma **canda** la dirección de cobro |
 | **Cajero** | No (solo PIN) | Ingresa Bs → QR → espera la pantalla verde. Ve todo, no toca nada |
-| **Cliente** | Sí | Escanea el QR → conecta → `approve` + `pay` → recibe comprobante |
+| **Cliente** | Sí | Escanea el QR → página de pago → `approve` + `pay` → comprobante |
 
-Regla: la wallet se conecta **solo para firmar** (pagar o registrar). Para mirar/recibir, nunca.
+La pantalla verde la dispara el **evento `PaymentReceived`** leído de la cadena — nunca una captura
+del cliente. La wallet se conecta **solo para firmar**; para mirar o recibir, nunca.
 
 ## Stack
-- **Contratos**: Solidity + Hardhat · red **Base Sepolia** (chainId **84532**)
-- **Web**: Vite + React + TypeScript · **wagmi + viem + Reown AppKit** (MetaMask extensión + móvil)
-- **QR**: es la URL de la página de pago
-- **App móvil** (Flutter, con Reown AppKit): después del Buildathon
+- **Contratos**: Solidity 0.8.28 · Hardhat · OpenZeppelin · red **Base Sepolia** (chainId 84532)
+- **Web**: Vite + React + TypeScript · wagmi + viem + Reown AppKit · el QR es la URL de `/pay/:saleId`
+- **App Waliki** (Flutter vía **FVM**, última estable): en el demo — caja de solo lectura (JSON-RPC)
+  + mockups navegables; firma en app (Reown AppKit Flutter) post-evento
+- Convención: **comentarios de código en inglés**; UI, documentación y comunicación en español
 
 ## Estructura (monorepo)
 ```
 waliki/
-  contracts/   # Hardhat: TestUSDT (ERC-20, 6 decimales, faucet) + WalikiRouter (registerMerchant, pay, evento)
-  web/         # Vite + React: /caja (cobro→QR→verde) y /pay/:saleId (página de pago del cliente)
+  contracts/   # TestUSDT (ERC-20, 6 decimales, faucet con cooldown) + WalikiRouter
+               # (registerMerchant / setPayoutAddress / pay + evento PaymentReceived)
+               # test/ (7 tests) · scripts/deploy.ts → deployments/<red>.json
+  web/         # /caja (cobro Bs→QR→verde) y /pay/:saleId (página de pago del cliente)
   packages/    # (futuro) ABI + tipos compartidos
+  docs/        # PASO-0.md (checklist de cuentas) y siguientes
 ```
 
-## Plan del spike (tarea inicial: conexión MetaMask)
-- **Paso 0 — Cuentas** ← EMPEZAR AQUÍ (ver `docs/PASO-0.md`)
-- **Paso 1 — Repo**: scaffolding de `contracts/` (Hardhat) y `web/` (Vite)
-- **Paso 2 — Contratos**: `TestUSDT` + `WalikiRouter`; test local → deploy a Base Sepolia
-- **Paso 3 — Página de pago**: conectar, forzar red, `approve` + `pay`, mostrar hash → recibo
-- **Paso 4 — Caja**: monto Bs → QR → `watchContractEvent` → pantalla verde
-- **Paso 5 — Prueba real**: deploy a Vercel, pago desde un teléfono que escanea el QR
+## Plan del spike y estado
+- [x] **Paso 0 — Cuentas**: Reown projectId · MetaMask PC + 2 teléfonos · gas de Base Sepolia
+- [x] **Paso 1 — Scaffolding**: `contracts/` compila y testea · `web/` build verificado
+- [x] **Paso 2 — Contratos**: `TestUSDT` + `WalikiRouter` escritos y testeados (7/7 en red local).
+  **Deploy a Base Sepolia pendiente**: poner `PRIVATE_KEY` en `contracts/.env` y correr
+  `npm run deploy:baseSepolia`
+- [ ] **Paso 3 — Página de pago**: conectar, forzar red, `approve` + `pay`, comprobante
+- [ ] **Paso 4 — Caja**: monto Bs → QR → `watchContractEvent` → pantalla verde
+- [ ] **Paso 4b — App Waliki (demo)**: caja de solo lectura (JSON-RPC) + mockups de Modo Fácil,
+  Comercio y puntaje
+- [ ] **Paso 5 — Prueba real**: deploy a Vercel + pago desde un teléfono que escanea el QR
 
 **Criterios de "hecho" del spike**: conectar en escritorio Y en teléfono desde el QR · red forzada a
-Base Sepolia · `approve` + `pay` reales · verde disparado por el EVENTO (no por "salió la tx") · manejo
-del rechazo del usuario y del cambio de cuenta.
-
-## Estado
-- [x] Nombre y plan (Google Doc v3)
-- [x] Repo inicializado
-- [ ] Paso 0 — cuentas
-- [ ] Paso 2 — contratos
-- [ ] Paso 3 — página de pago (spike MetaMask)
+Base Sepolia · `approve` + `pay` reales · verde disparado por el EVENTO (no por "salió la tx") ·
+manejo del rechazo del usuario y del cambio de cuenta.
