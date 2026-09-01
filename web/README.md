@@ -1,32 +1,21 @@
-# React + TypeScript + Vite
+# Waliki — web (caja y página de pago)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Frontend de la Fase 1: **`/caja`** (cobro Bs → QR → pantalla verde) y **`/pay/:saleId`**
+(página de pago del cliente). Vite + React + TypeScript · wagmi v3 + viem + Reown AppKit.
 
-Currently, two official plugins are available:
+## Correr en desarrollo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Copia `.env.example` a `.env` y completa `VITE_REOWN_PROJECT_ID` (proyecto "Waliki" en
+   dashboard.reown.com). `VITE_RPC_URL` es opcional (por defecto `https://sepolia.base.org`).
+2. `npm install`
+3. `npm run dev` → http://localhost:5173
 
-## React Compiler
+## Build de producción
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+`npm run build` (tsc + vite) · `npm run preview` para servirlo localmente.
 
-## Expanding the Oxlint configuration
+## Contratos
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Red: **Base Sepolia** (chainId 84532). Los ABIs y direcciones llegan generados a
+`src/contracts/waliki.json` — se regeneran desde `../contracts` con `npm run export-abi`
+(corre solo después de cada deploy). No editar ese archivo a mano.

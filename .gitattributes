@@ -1,0 +1,9 @@
+# Normalize line endings: LF in the repo, per-OS in working copies
+* text=auto
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
