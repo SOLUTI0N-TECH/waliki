@@ -5,6 +5,13 @@ import "dotenv/config";
 // RPC y clave del deployer salen de contracts/.env (nunca se commitea; ver .env.example)
 const { RPC_URL, PRIVATE_KEY, BASESCAN_API_KEY } = process.env;
 
+// MetaMask exports keys without the 0x prefix; accept both forms
+const deployerKey = PRIVATE_KEY
+  ? PRIVATE_KEY.startsWith("0x")
+    ? PRIVATE_KEY
+    : `0x${PRIVATE_KEY}`
+  : undefined;
+
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.28",
@@ -14,7 +21,7 @@ const config: HardhatUserConfig = {
     baseSepolia: {
       url: RPC_URL ?? "https://sepolia.base.org",
       chainId: 84532,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      accounts: deployerKey ? [deployerKey] : [],
     },
   },
   etherscan: {
