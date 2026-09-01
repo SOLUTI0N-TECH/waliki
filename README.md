@@ -50,9 +50,8 @@ waliki/
 ## Plan del spike y estado
 - [x] **Paso 0 — Cuentas**: Reown projectId · MetaMask PC + 2 teléfonos · gas de Base Sepolia
 - [x] **Paso 1 — Scaffolding**: `contracts/` compila y testea · `web/` build verificado
-- [x] **Paso 2 — Contratos**: `TestUSDT` + `WalikiRouter` escritos y testeados (7/7 en red local).
-  **Deploy a Base Sepolia pendiente**: poner `PRIVATE_KEY` en `contracts/.env` y correr
-  `npm run deploy:baseSepolia`
+- [x] **Paso 2 — Contratos**: `TestUSDT` + `WalikiRouter` testeados (7/7) y **desplegados en
+  Base Sepolia** — direcciones en `contracts/deployments/baseSepolia.json`
 - [ ] **Paso 3 — Página de pago**: conectar, forzar red, `approve` + `pay`, comprobante
 - [ ] **Paso 4 — Caja**: monto Bs → QR → `watchContractEvent` → pantalla verde
 - [ ] **Paso 4b — App Waliki (demo)**: caja de solo lectura (JSON-RPC) + mockups de Modo Fácil,

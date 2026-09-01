@@ -84,9 +84,9 @@ waliki/
 
 ## Estado del plan (spike Fase 1)
 - [x] Paso 0 — cuentas · [x] Paso 1 — scaffolding
-- [x] **Paso 2 — contratos**: escritos y testeados (7/7 en red local). **Deploy a Base Sepolia
-  PENDIENTE**: el usuario pone `PRIVATE_KEY` en `contracts/.env` (ver `.env.example`) y se corre
-  `npm run deploy:baseSepolia` → guarda `deployments/baseSepolia.json`.
+- [x] **Paso 2 — contratos**: testeados (7/7) y **DESPLEGADOS en Base Sepolia** (01/09/2026).
+  Direcciones en `contracts/deployments/baseSepolia.json` · ABIs en `web/src/contracts/waliki.json`
+  (regenerar con `npm run export-abi`). `web/.env` ya tiene el projectId de Reown.
 - [ ] Paso 3 — página de pago (conectar, forzar red, `approve`+`pay`, comprobante)
 - [ ] Paso 4 — caja (Bs → QR → `watchContractEvent(saleId)` → verde)
 - [ ] Paso 4b — **app Flutter del demo** (`app/` con FVM): caja solo-lectura (JSON-RPC) + mockups
