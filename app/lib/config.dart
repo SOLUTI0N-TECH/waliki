@@ -12,5 +12,6 @@ class WalikiConfig {
 
   /// Base URL of the web payment page the QR points to. Editable at runtime
   /// from the charge screen (until the site lives on a stable Vercel URL).
-  static String payBaseUrl = 'http://192.168.0.10:5173';
+  /// Default: the demo PC's LAN address, so phones on the same WiFi can pay.
+  static String payBaseUrl = 'http://192.168.100.29:5173';
 }
