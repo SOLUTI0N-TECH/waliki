@@ -47,6 +47,9 @@ waliki/
   docs/        # PASO-0.md (checklist de cuentas) y siguientes
 ```
 
+> 👉 **¿Te acabas de sumar al proyecto?** Empieza por **[`docs/HANDOFF.md`](docs/HANDOFF.md)**:
+> estado real, arranque en 10 minutos, mapa del repo, reglas y trampas conocidas.
+
 ## Cómo correr el proyecto (dev)
 
 **Prerequisitos**: Node 22+ · para la app: FVM (`dart pub global activate fvm`) — la versión de
