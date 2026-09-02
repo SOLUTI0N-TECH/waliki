@@ -87,10 +87,12 @@ waliki/
 - [x] **Paso 2 — contratos**: testeados (7/7) y **DESPLEGADOS en Base Sepolia** (01/09/2026).
   Direcciones en `contracts/deployments/baseSepolia.json` · ABIs en `web/src/contracts/waliki.json`
   (regenerar con `npm run export-abi`). `web/.env` ya tiene el projectId de Reown.
-- [ ] Paso 3 — página de pago: IMPLEMENTADA (conectar, forzar red, faucet, `approve`+`pay`,
-  comprobante, "ya pagada", cotización con vencimiento); falta la PRUEBA REAL con wallets
-  (escritorio + teléfono). Comercio demo #1 registrado on-chain (script `register-demo-merchant`)
-- [ ] Paso 4 — caja (Bs → QR → `watchContractEvent(saleId)` → verde)
+- [x] Paso 3 — página de pago: COMPLETA y PROBADA con wallets reales en escritorio y teléfono
+  (01/09). Comercio demo #1 registrado on-chain (script `register-demo-merchant`)
+- [ ] Paso 4 — caja: IMPLEMENTADA (PIN · tasa manual persistida en localStorage · Bs→QR con URL
+  real · verde por DOS vías: `watchContractEvent` filtrado por saleId + polling de `paidAmount` ·
+  sonido armado por gesto · semáforo por bloques · historial de sesión); falta la prueba del
+  circuito completo caja+teléfono
 - [ ] Paso 4b — **app Flutter del demo** (`app/` con FVM): caja solo-lectura (JSON-RPC) + mockups
   navegables de Modo Fácil, Comercio y puntaje
 - [ ] Paso 5 — Vercel + pago real desde teléfono · kit demo + video + ensayo del pitch

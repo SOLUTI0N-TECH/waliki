@@ -52,11 +52,10 @@ waliki/
 - [x] **Paso 1 — Scaffolding**: `contracts/` compila y testea · `web/` build verificado
 - [x] **Paso 2 — Contratos**: `TestUSDT` + `WalikiRouter` testeados (7/7) y **desplegados en
   Base Sepolia** — direcciones en `contracts/deployments/baseSepolia.json`
-- [ ] **Paso 3 — Página de pago**: **implementada** (conectar con AppKit, red forzada, faucet
-  integrado, `approve` + `pay` contra el router real, comprobante, "ya pagada", cotización que
-  vence) — falta la **prueba real** con wallets en escritorio y teléfono. Comercio demo #1
-  ("Tienda Demo CBBA") registrado on-chain
-- [ ] **Paso 4 — Caja**: monto Bs → QR → `watchContractEvent` → pantalla verde
+- [x] **Paso 3 — Página de pago**: completa y **probada con wallets reales** en escritorio y
+  teléfono (01/09) — conectar, red forzada, faucet, `approve` + `pay`, comprobante, "ya pagada"
+- [ ] **Paso 4 — Caja**: **implementada** (PIN de empleado, tasa manual, Bs → QR real, verde por
+  evento + polling, sonido, semáforo de conexión) — falta la prueba del circuito completo
 - [ ] **Paso 4b — App Waliki (demo)**: caja de solo lectura (JSON-RPC) + mockups de Modo Fácil,
   Comercio y puntaje
 - [ ] **Paso 5 — Prueba real**: deploy a Vercel + pago desde un teléfono que escanea el QR
