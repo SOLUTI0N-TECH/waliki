@@ -56,8 +56,9 @@ waliki/
   teléfono (01/09) — conectar, red forzada, faucet, `approve` + `pay`, comprobante, "ya pagada"
 - [x] **Paso 4 — Caja**: completa y **circuito probado en dispositivos reales** (01/09): PIN →
   Bs → QR → pago desde teléfono → **pantalla verde con sonido disparada por el evento**
-- [ ] **Paso 4b — App Waliki (demo)**: caja de solo lectura (JSON-RPC) + mockups de Modo Fácil,
-  Comercio y puntaje
+- [ ] **Paso 4b — App Waliki (Flutter)**: **implementada** — PIN, ventas reales leídas de la cadena,
+  cobrar (Bs → QR → verde), historial on-chain y mockups de las fases 2-3; falta probarla en
+  teléfono (APK requiere Android SDK)
 - [ ] **Paso 5 — Prueba real**: deploy a Vercel + pago desde un teléfono que escanea el QR
 
 **Criterios de "hecho" del spike**: conectar en escritorio Y en teléfono desde el QR · red forzada a
