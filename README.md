@@ -54,8 +54,8 @@ waliki/
   Base Sepolia** — direcciones en `contracts/deployments/baseSepolia.json`
 - [x] **Paso 3 — Página de pago**: completa y **probada con wallets reales** en escritorio y
   teléfono (01/09) — conectar, red forzada, faucet, `approve` + `pay`, comprobante, "ya pagada"
-- [ ] **Paso 4 — Caja**: **implementada** (PIN de empleado, tasa manual, Bs → QR real, verde por
-  evento + polling, sonido, semáforo de conexión) — falta la prueba del circuito completo
+- [x] **Paso 4 — Caja**: completa y **circuito probado en dispositivos reales** (01/09): PIN →
+  Bs → QR → pago desde teléfono → **pantalla verde con sonido disparada por el evento**
 - [ ] **Paso 4b — App Waliki (demo)**: caja de solo lectura (JSON-RPC) + mockups de Modo Fácil,
   Comercio y puntaje
 - [ ] **Paso 5 — Prueba real**: deploy a Vercel + pago desde un teléfono que escanea el QR
