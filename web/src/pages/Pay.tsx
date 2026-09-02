@@ -153,8 +153,13 @@ export default function Pay() {
   const amount = sale.amount ?? 0n
   const balance = balanceRead.data
   const allowance = allowanceRead.data
-  const paidBefore = (paidRead.data ?? 0n) > 0n
-  const justPaid = payRcpt.isSuccess
+  const paidOnChain = (paidRead.data ?? 0n) > 0n
+  const payReverted = payRcpt.isError || payRcpt.data?.status === 'reverted'
+  // Green by two roads: the receipt, or the 4s chain poll confirming the sale
+  // is paid after this browser sent the payment — never an eternal "Pagando…".
+  const justPaid =
+    (payRcpt.isSuccess && payRcpt.data?.status === 'success') ||
+    (paidOnChain && Boolean(payTx.data) && !payReverted)
 
   const needsFaucet = isConnected && !wrongNetwork && balance !== undefined && balance < amount
   const needsApprove = allowance !== undefined && allowance < amount
@@ -199,8 +204,8 @@ export default function Pay() {
     )
   }
 
-  // Already paid (by anyone) before this browser tried
-  if (paidBefore) {
+  // Already paid (by someone else) before this browser tried
+  if (paidOnChain) {
     return (
       <div className="card">
         <h1>Esta venta ya está pagada</h1>
@@ -314,6 +319,17 @@ export default function Pay() {
         )}
 
         {lastError != null && <div className="error-box">{shortError(lastError)}</div>}
+
+        {(faucetTx.isPending || approveTx.isPending || payTx.isPending) && (
+          <div className="muted small center">
+            ¿No aparece la firma? Abre la app de MetaMask en este teléfono y vuelve aquí.
+          </div>
+        )}
+        {(Boolean(faucetTx.data) && faucetRcpt.isLoading) ||
+        (Boolean(approveTx.data) && approveRcpt.isLoading) ||
+        (Boolean(payTx.data) && payRcpt.isLoading) ? (
+          <div className="muted small center">Confirmando en la blockchain…</div>
+        ) : null}
       </div>
 
       <p className="muted small trust">
