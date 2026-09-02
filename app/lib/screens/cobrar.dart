@@ -75,7 +75,8 @@ class _CobrarScreenState extends State<CobrarScreen> {
     final rate = _rate;
     if (bs == null || rate == null) return;
     final rnd = Random.secure();
-    final id = '0x${List.generate(32, (_) => rnd.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
+    final id =
+        '0x${List.generate(32, (_) => rnd.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
     final units = BigInt.from((bs / rate * 1e6).round());
     final exp = DateTime.now().millisecondsSinceEpoch ~/ 1000 +
         WalikiConfig.quoteMinutes * 60;
@@ -130,35 +131,12 @@ class _CobrarScreenState extends State<CobrarScreen> {
   Widget build(BuildContext context) {
     if (_phase == _Phase.paid) return _buildPaid();
     return Scaffold(
+      appBar: WalikiBar(
+        title: _phase == _Phase.entry ? 'Cobrar' : 'Cobro en curso',
+        back: true,
+      ),
       body: SafeArea(
-        child: Column(
-          children: [
-            const TestnetBanner(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 20, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_ios_new),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_phase == _Phase.entry ? 'Cobrar' : 'Cobro en curso',
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w700)),
-                      const Text('Caja 1 · Tienda Demo CBBA',
-                          style: TextStyle(color: kMuted, fontSize: 12)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-                child: _phase == _Phase.entry ? _buildEntry() : _buildQr()),
-          ],
-        ),
+        child: _phase == _Phase.entry ? _buildEntry() : _buildQr(),
       ),
     );
   }
@@ -166,61 +144,67 @@ class _CobrarScreenState extends State<CobrarScreen> {
   Widget _buildEntry() {
     final bs = _bs;
     final rate = _rate;
-    final usdt =
-        (bs != null && rate != null) ? BigInt.from((bs / rate * 1e6).round()) : null;
+    final usdt = (bs != null && rate != null)
+        ? BigInt.from((bs / rate * 1e6).round())
+        : null;
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('Tasa: Bs ', style: TextStyle(color: kMuted, fontSize: 13)),
-              SizedBox(
-                width: 70,
-                child: TextField(
-                  controller: _rateCtrl,
-                  textAlign: TextAlign.center,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                  decoration: const InputDecoration(isDense: true),
-                  onChanged: (_) => setState(() {}),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: kSurface,
+              border: Border.all(color: kLine),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Tasa  Bs',
+                    style: wk(size: 13, weight: 500, color: kInkSoft)),
+                SizedBox(
+                  width: 62,
+                  child: TextField(
+                    controller: _rateCtrl,
+                    textAlign: TextAlign.center,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    style: wk(size: 14.5, weight: 700, tabular: true),
+                    decoration: const InputDecoration(
+                        isDense: true, border: InputBorder.none),
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ),
-              ),
-              const Text(' = 1 USDT', style: TextStyle(color: kMuted, fontSize: 13)),
-            ],
+                Text('= 1 USDT',
+                    style: wk(size: 13, weight: 500, color: kInkSoft)),
+              ],
+            ),
           ),
-          const SizedBox(height: 18),
-          const Text('MONTO EN BOLIVIANOS',
-              style: TextStyle(
-                  color: kMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5)),
-          const SizedBox(height: 6),
+          const SizedBox(height: 22),
+          Text('MONTO EN BOLIVIANOS',
+              style:
+                  wk(size: 11, weight: 700, color: kInkSoft, tracking: 0.04)),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 9),
                 child: Text('Bs ',
-                    style: TextStyle(
-                        fontSize: 26, fontWeight: FontWeight.w600, color: kMuted)),
+                    style: wk(size: 26, weight: 600, color: kInkSoft)),
               ),
-              Text(_amount.isEmpty ? '0' : _amount,
-                  style: const TextStyle(
-                      fontSize: 56, fontWeight: FontWeight.w700, letterSpacing: -2)),
+              Text(_amount.isEmpty ? '0' : _amount, style: wkNum(size: 58)),
             ],
           ),
+          const SizedBox(height: 4),
           Text(usdt != null ? '≈ ${fmtUsdt(usdt)} tUSDT' : ' ',
-              style: const TextStyle(
-                  color: kGreen, fontSize: 17, fontWeight: FontWeight.w700)),
+              style: wk(size: 16.5, weight: 700, color: kBrandInk, tabular: true)),
           const Spacer(),
           _AmountKeypad(onKey: _key),
-          const SizedBox(height: 14),
-          PrimaryButton('GENERAR QR DE COBRO',
-              onTap: usdt != null ? _cobrar : null),
+          const SizedBox(height: 16),
+          PrimaryButton('Cobrar — generar QR', onTap: usdt != null ? _cobrar : null),
         ],
       ),
     );
@@ -234,88 +218,91 @@ class _CobrarScreenState extends State<CobrarScreen> {
     final url =
         '${WalikiConfig.payBaseUrl}/pay/${sale.id}?m=${WalikiConfig.merchantId}&a=${sale.amountUnits}&bs=$bsParam&r=${sale.rate.toStringAsFixed(2)}&exp=${sale.exp}';
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         children: [
-          Text('Bs ${fmtNum(sale.bs)} · ${fmtUsdt(sale.amountUnits)} tUSDT',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 14),
+          Text('Bs ${fmtNum(sale.bs)}', style: wkNum(size: 34)),
+          Text('${fmtUsdt(sale.amountUnits)} tUSDT',
+              style: wk(size: 15, weight: 700, color: kBrandInk, tabular: true)),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border.all(color: kLine),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: const [
+                BoxShadow(
+                    color: Color(0x1A0E1A15),
+                    blurRadius: 24,
+                    offset: Offset(0, 8)),
+              ],
             ),
-            child: QrImageView(data: url, size: 244),
+            child: QrImageView(data: url, size: 232),
           ),
-          const SizedBox(height: 8),
-          const Text('El cliente escanea con su cámara — se abre la página de pago',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: kMuted, fontSize: 12)),
           const SizedBox(height: 12),
+          Text('El cliente escanea con su cámara — se abre la página de pago',
+              textAlign: TextAlign.center,
+              style: wk(size: 12.5, weight: 500, color: kInkSoft, height: 1.45)),
+          const SizedBox(height: 14),
           WCard(
-            padding: const EdgeInsets.all(13),
+            padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: const BoxDecoration(
-                      shape: BoxShape.circle, color: kGreen),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
+                const _PulseDot(),
+                const SizedBox(width: 11),
+                Expanded(
                     child: Text('Esperando el pago…',
-                        style: TextStyle(fontWeight: FontWeight.w700))),
+                        style: wk(size: 14.5, weight: 700))),
                 expired
-                    ? WChip('cotización vencida',
-                        bg: const Color(0xFFFDECEC), fg: kRed)
+                    ? const WChip('cotización vencida',
+                        bg: kDangerTint, fg: kDanger)
                     : WChip(
                         'vence en ${left ~/ 60}:${(left % 60).toString().padLeft(2, '0')}',
-                        bg: kAmberBg,
+                        bg: kAmberTint,
                         fg: kAmber),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          const Text('El verde lo dispara el evento en la blockchain — no una captura.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: kMuted, fontSize: 11)),
           const SizedBox(height: 10),
+          Text('El verde lo dispara el evento en la blockchain — no una captura.',
+              textAlign: TextAlign.center,
+              style: wk(size: 11.5, weight: 500, color: kInkSoft, height: 1.45)),
+          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Flexible(
                 child: Text('QR → ${WalikiConfig.payBaseUrl}',
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: kMuted, fontSize: 11)),
+                    style: wk(size: 11, weight: 500, color: kInkSoft, mono: true)),
               ),
               IconButton(
-                iconSize: 16,
-                icon: const Icon(Icons.edit, color: kMuted),
+                iconSize: 15,
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.edit_outlined, color: kInkSoft),
                 onPressed: _editBaseUrl,
               ),
             ],
           ),
           if (expired) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             PrimaryButton('Generar un QR nuevo', onTap: _reset),
+            const SizedBox(height: 10),
           ],
-          const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 48,
             child: OutlinedButton(
               onPressed: _reset,
               style: OutlinedButton.styleFrom(
-                foregroundColor: kRed,
-                side: const BorderSide(color: Color(0xFFE4C7C7), width: 1.4),
+                foregroundColor: kDanger,
+                side: const BorderSide(color: kLine, width: 1.5),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
               ),
-              child: const Text('Cancelar venta',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Text('Cancelar venta',
+                  style: wk(size: 14.5, weight: 700, color: kDanger)),
             ),
           ),
         ],
@@ -327,61 +314,86 @@ class _CobrarScreenState extends State<CobrarScreen> {
     final sale = _sale!;
     final p = _payment;
     return Scaffold(
-      backgroundColor: kGreenBright,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const Spacer(),
-              Container(
-                width: 120,
-                height: 120,
-                decoration: const BoxDecoration(
-                    shape: BoxShape.circle, color: Colors.white),
-                child: const Icon(Icons.check, size: 64, color: kGreenBright),
-              ),
-              const SizedBox(height: 18),
-              const Text('¡Pago recibido!',
-                  style: TextStyle(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [kSuccessTop, kBrand, kSuccessBottom],
+            stops: [0, 0.62, 1],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const Spacer(),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.7, end: 1),
+                  duration: const Duration(milliseconds: 420),
+                  curve: Curves.easeOutBack,
+                  builder: (context, scale, child) =>
+                      Transform.scale(scale: scale, child: child),
+                  child: Container(
+                    width: 112,
+                    height: 112,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
                       color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Text('Bs ${fmtNum(sale.bs)}',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 44,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -1)),
-              Text('${fmtUsdt(sale.amountUnits)} tUSDT · venta ${short(sale.id)}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 14)),
-              if (_late) ...[
-                const SizedBox(height: 8),
-                WChip('pago fuera de plazo (cotización vencida)',
-                    bg: Colors.white24, fg: Colors.white),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Color(0x59000000),
+                            blurRadius: 30,
+                            offset: Offset(0, 10)),
+                      ],
+                    ),
+                    child: const Icon(Icons.check_rounded,
+                        size: 62, color: kBrand),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text('¡Pago recibido!',
+                    style: wk(size: 26, weight: 800, color: Colors.white, tracking: -0.03)),
+                const SizedBox(height: 6),
+                Text('Bs ${fmtNum(sale.bs)}',
+                    style: wkNum(size: 46, color: Colors.white)),
+                Text(
+                    '${fmtUsdt(sale.amountUnits)} tUSDT · venta ${short(sale.id)}',
+                    style: wk(
+                        size: 13.5,
+                        weight: 500,
+                        color: Colors.white.withValues(alpha: 0.9))),
+                if (_late) ...[
+                  const SizedBox(height: 10),
+                  WChip('pago fuera de plazo',
+                      bg: Colors.white.withValues(alpha: 0.18), fg: Colors.white),
+                ],
+                const SizedBox(height: 22),
+                Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      _receiptRow('Pagó',
+                          p != null ? short(p.payer) : 'verificado on-chain'),
+                      const SizedBox(height: 9),
+                      _receiptRow('Transacción',
+                          p != null ? short(p.txHash) : 'confirmada'),
+                      const SizedBox(height: 9),
+                      _receiptRow(
+                          'Bloque', p != null ? p.block.toString() : '—'),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                PrimaryButton('Nueva venta',
+                    color: Colors.white, fg: kBrandInk, onTap: _reset),
               ],
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    _receiptRow('Pagó', p != null ? short(p.payer) : 'verificado on-chain'),
-                    const SizedBox(height: 8),
-                    _receiptRow('Transacción', p != null ? short(p.txHash) : 'confirmada'),
-                    const SizedBox(height: 8),
-                    _receiptRow('Bloque', p != null ? p.block.toString() : '—'),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              PrimaryButton('NUEVA VENTA',
-                  color: Colors.white, fg: const Color(0xFF0B7D4A), onTap: _reset),
-            ],
+            ),
           ),
         ),
       ),
@@ -391,12 +403,13 @@ class _CobrarScreenState extends State<CobrarScreen> {
   Widget _receiptRow(String label, String value) => Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          Text(label,
+              style: wk(
+                  size: 12.5,
+                  weight: 500,
+                  color: Colors.white.withValues(alpha: 0.78))),
           Text(value,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600)),
+              style: wk(size: 13, weight: 600, color: Colors.white, mono: true)),
         ],
       );
 
@@ -405,11 +418,13 @@ class _CobrarScreenState extends State<CobrarScreen> {
     final value = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('URL de la página de pago'),
+        title: Text('URL de la página de pago',
+            style: wk(size: 17, weight: 700)),
         content: TextField(
           controller: ctrl,
+          style: wk(size: 14, weight: 500),
           decoration: const InputDecoration(
-              hintText: 'http://192.168.0.X:5173 o https://waliki.vercel.app'),
+              hintText: 'http://192.168.x.x:5173 o https://waliki.vercel.app'),
         ),
         actions: [
           TextButton(
@@ -427,6 +442,47 @@ class _CobrarScreenState extends State<CobrarScreen> {
   }
 }
 
+class _PulseDot extends StatefulWidget {
+  const _PulseDot();
+
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) => Container(
+          width: 11,
+          height: 11,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: kBrand,
+            boxShadow: [
+              BoxShadow(
+                color: kBrand.withValues(alpha: 0.22 - _c.value * 0.18),
+                blurRadius: 0,
+                spreadRadius: 3 + _c.value * 6,
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
 class _AmountKeypad extends StatelessWidget {
   final void Function(String) onKey;
   const _AmountKeypad({required this.onKey});
@@ -440,24 +496,23 @@ class _AmountKeypad extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 10,
       crossAxisSpacing: 10,
-      childAspectRatio: 1.85,
+      childAspectRatio: 1.9,
       children: [
         for (final k in keys)
           Material(
-            color: Colors.white,
+            color: kSurface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(15),
               side: const BorderSide(color: kLine),
             ),
             child: InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(15),
               onTap: () => onKey(k),
               child: Center(
                 child: k == '<'
-                    ? const Icon(Icons.backspace_outlined, color: kMuted)
-                    : Text(k,
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w600)),
+                    ? const Icon(Icons.backspace_outlined,
+                        color: kInkSoft, size: 21)
+                    : Text(k, style: wk(size: 23, weight: 600, tabular: true)),
               ),
             ),
           ),

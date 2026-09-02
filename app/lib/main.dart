@@ -15,8 +15,14 @@ class WalikiApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: kGreen),
-          scaffoldBackgroundColor: kBg,
+          fontFamily: 'PlusJakartaSans',
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: kBrand,
+            primary: kBrand,
+            surface: kSurface,
+          ),
+          scaffoldBackgroundColor: kPage,
+          splashFactory: InkSparkle.splashFactory,
         ),
         // Phone-first app: on wide screens (web/desktop) render inside a
         // centered 430px frame; on phones this changes nothing.
@@ -73,60 +79,54 @@ class _PinGateState extends State<PinGate> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: const WalikiBar(),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              const TestnetBanner(),
-              const SizedBox(height: 34),
-              const Text('waliki',
-                  style: TextStyle(
-                      fontSize: 38,
-                      fontWeight: FontWeight.w700,
-                      color: kGreenDark,
-                      letterSpacing: -1)),
-              const SizedBox(height: 6),
-              const Text('La caja que verifica en la blockchain',
-                  style: TextStyle(color: kMuted, fontSize: 13)),
-              const SizedBox(height: 22),
+              const SizedBox(height: 40),
+              Text('waliki',
+                  style: wk(size: 40, weight: 800, color: kBrandInk, tracking: -0.035)),
+              const SizedBox(height: 4),
+              Text('La caja que verifica en la blockchain',
+                  style: wk(size: 13.5, weight: 500, color: kInkSoft)),
+              const SizedBox(height: 24),
               const WChip('Tienda Demo CBBA · Caja 1'),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Text(_error ? 'PIN incorrecto — intenta de nuevo' : 'Ingresa tu PIN de cajero',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                      color: _error ? kRed : kInk)),
-              const SizedBox(height: 14),
+                  style: wk(size: 15, weight: 700, color: _error ? kDanger : kInk)),
+              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   for (var i = 0; i < 4; i++)
-                    Container(
-                      width: 14,
-                      height: 14,
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      width: 13,
+                      height: 13,
                       margin: const EdgeInsets.symmetric(horizontal: 7),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: i < _pin.length ? kGreen : Colors.transparent,
+                        color: i < _pin.length ? kBrand : Colors.transparent,
                         border: Border.all(
-                            color: i < _pin.length ? kGreen : const Color(0xFFC6CEC8),
+                            color: i < _pin.length ? kBrand : const Color(0xFFC6CEC8),
                             width: 2),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 26),
               _Keypad(onKey: _tap),
-              const SizedBox(height: 16),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 40),
+              const SizedBox(height: 18),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
                 child: Text(
                   'El cajero cobra y verifica — nunca toca los fondos ni las llaves.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: kMuted, fontSize: 12),
+                  style: wk(size: 12.5, weight: 500, color: kInkSoft, height: 1.45),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 22),
             ],
           ),
         ),
@@ -156,20 +156,19 @@ class _Keypad extends StatelessWidget {
             k.isEmpty
                 ? const SizedBox()
                 : Material(
-                    color: Colors.white,
+                    color: kSurface,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                       side: const BorderSide(color: kLine),
                     ),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(16),
                       onTap: () => onKey(k),
                       child: Center(
                         child: k == '<'
-                            ? const Icon(Icons.backspace_outlined, color: kMuted)
-                            : Text(k,
-                                style: const TextStyle(
-                                    fontSize: 24, fontWeight: FontWeight.w600)),
+                            ? const Icon(Icons.backspace_outlined,
+                                color: kInkSoft, size: 22)
+                            : Text(k, style: wk(size: 25, weight: 600, tabular: true)),
                       ),
                     ),
                   ),

@@ -61,6 +61,16 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Bundled (not fetched at runtime) so the demo works with no connectivity.
+  # Both are variable fonts; weights are selected with FontVariation in ui.dart.
+  fonts:
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

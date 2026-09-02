@@ -22,25 +22,23 @@ class _HistorialScreenState extends State<HistorialScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Historial',
-            style: TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: kBg,
+      appBar: WalikiBar(
+        title: 'Historial',
+        back: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, size: 20, color: kInkSoft),
             onPressed: () => setState(() => _future = Chain.payments()),
           ),
         ],
       ),
       body: Column(
         children: [
-          const TestnetBanner(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 10, 20, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
             child: Text(
               'Leído directamente de la blockchain — contabilidad que no depende de confiar en nadie.',
-              style: TextStyle(color: kMuted, fontSize: 12),
+              style: wk(size: 12.5, weight: 500, color: kInkSoft, height: 1.45),
             ),
           ),
           Expanded(
@@ -49,18 +47,21 @@ class _HistorialScreenState extends State<HistorialScreen> {
               builder: (context, snap) {
                 if (snap.hasError) {
                   return Center(
-                      child: Text('Sin conexión con la cadena\n${snap.error}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: kMuted)));
+                      child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text('Sin conexión con la cadena\n${snap.error}',
+                        textAlign: TextAlign.center,
+                        style: wk(size: 13, weight: 500, color: kInkSoft)),
+                  ));
                 }
                 if (!snap.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 final list = snap.data!.reversed.toList();
                 if (list.isEmpty) {
-                  return const Center(
+                  return Center(
                       child: Text('Todavía no hay ventas',
-                          style: TextStyle(color: kMuted)));
+                          style: wk(size: 14, weight: 500, color: kInkSoft)));
                 }
                 final total =
                     list.fold<BigInt>(BigInt.zero, (a, p) => a + p.amount);
@@ -68,21 +69,21 @@ class _HistorialScreenState extends State<HistorialScreen> {
                   padding: const EdgeInsets.all(20),
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(13),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEAF3EE),
+                        color: kBrandTint,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(
                         '${list.length} ventas · ${fmtUsdt(total)} tUSDT',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, color: kGreenDark),
+                        style: wk(
+                            size: 14, weight: 700, color: kBrandInk, tabular: true),
                       ),
                     ),
                     const SizedBox(height: 10),
                     for (final p in list) ...[
                       WCard(
-                        padding: const EdgeInsets.all(13),
+                        padding: const EdgeInsets.all(14),
                         child: Row(
                           children: [
                             Expanded(
@@ -90,14 +91,18 @@ class _HistorialScreenState extends State<HistorialScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('${fmtUsdt(p.amount)} tUSDT',
-                                      style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700)),
-                                  const SizedBox(height: 2),
+                                      style: wk(
+                                          size: 15.5,
+                                          weight: 700,
+                                          tabular: true)),
+                                  const SizedBox(height: 3),
                                   Text(
-                                    'de ${short(p.payer)} · bloque ${p.block} · tx ${short(p.txHash)}',
-                                    style: const TextStyle(
-                                        color: kMuted, fontSize: 11),
+                                    'de ${short(p.payer)} · bloque ${p.block}',
+                                    style: wk(
+                                        size: 11,
+                                        weight: 500,
+                                        color: kInkSoft,
+                                        mono: true),
                                   ),
                                 ],
                               ),

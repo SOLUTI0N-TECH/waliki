@@ -14,21 +14,28 @@ export default function Home() {
   const navigate = useNavigate()
   return (
     <>
-      <h1>Waliki</h1>
-      <p>
-        Cobros en USDT sin custodia: el pago viaja directo del cliente a la wallet del comercio;
-        la plataforma solo lee la cadena.
+      <h1>Cobra en USDT, sin custodios</h1>
+      <p className="muted">
+        El pago viaja directo de la billetera del cliente a la del comercio. Waliki solo lee la
+        blockchain para confirmarlo — nunca toca el dinero.
       </p>
+
       <nav className="home-nav">
-        <button className="btn" onClick={() => navigate(demoSaleUrl())}>
-          Generar venta de prueba (Bs 175)
-        </button>
-        <Link to="/caja">Caja (cajero)</Link>
-        <Link to="/registro">Registrar mi comercio (dueño)</Link>
+        <Link to="/caja">
+          Abrir la caja <span className="chip">cajero · PIN</span>
+        </Link>
+        <Link to="/registro">
+          Registrar mi comercio <span className="chip">dueño · 1 firma</span>
+        </Link>
       </nav>
-      <p className="muted small">
-        La venta de prueba apunta al comercio #1 ("Tienda Demo CBBA") en Base Sepolia, con
-        cotización que vence en 15 minutos — el mismo enlace que generará la caja.
+
+      <button className="btn btn-outline" onClick={() => navigate(demoSaleUrl())}>
+        Ver una venta de ejemplo (Bs 175)
+      </button>
+
+      <p className="muted small trust">
+        Ejemplo sobre el comercio #1 en Base Sepolia, con cotización que vence en 15 minutos —
+        el mismo enlace que genera la caja.
       </p>
     </>
   )

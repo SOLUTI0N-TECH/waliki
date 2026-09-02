@@ -11,30 +11,21 @@ void _concepto(BuildContext context, String fase) {
   ));
 }
 
-Widget _screen(String banner, String title, String subtitle, List<Widget> children) =>
+Widget _screen(String chip, String title, String subtitle, List<Widget> children) =>
     Builder(
       builder: (context) => Scaffold(
-        appBar: AppBar(
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-          backgroundColor: kBg,
-        ),
-        body: Column(
-          children: [
-            ConceptBanner(banner),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(subtitle, style: const TextStyle(color: kMuted, fontSize: 12)),
-                    const SizedBox(height: 14),
-                    ...children,
-                  ],
-                ),
-              ),
-            ),
-          ],
+        appBar: WalikiBar(title: title, back: true, actions: [ConceptChip(chip)]),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(subtitle,
+                  style: wk(size: 12.5, weight: 500, color: kInkSoft)),
+              const SizedBox(height: 16),
+              ...children,
+            ],
+          ),
         ),
       ),
     );
@@ -44,7 +35,7 @@ class ModoFacilScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _screen(
-        'CONCEPTO · FASE 2 — MODO FÁCIL',
+        'Concepto · Fase 2',
         'Modo Fácil',
         'Tu billetera, sin saber nada de cripto',
         [
@@ -130,7 +121,7 @@ class ComercioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _screen(
-        'CONCEPTO · FASE 3 — COMERCIO',
+        'Concepto · Fase 3',
         'Tienda Demo CBBA',
         'Pedidos con entrega · se paga igual que en caja',
         [
@@ -203,7 +194,7 @@ class PuntajeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _screen(
-        'CONCEPTO · TRANSVERSAL — PUNTAJE Y CRÉDITO',
+        'Concepto',
         'Puntaje comercial',
         'Tienda Demo CBBA',
         [

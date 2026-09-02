@@ -296,7 +296,7 @@ export default function Caja() {
           </div>
         </div>
         <button className="btn btn-white" onClick={() => cancelSale()}>
-          NUEVA VENTA
+          Nueva venta
         </button>
       </div>
     )
@@ -324,7 +324,7 @@ export default function Caja() {
           <QRCodeSVG value={url} size={250} marginSize={2} />
         </div>
         <div className="muted small center">
-          El cliente escanea con su cámara — se abre la página de pago
+          El cliente escanea con su cámara — se abre la página de pago en su navegador
         </div>
         {isLocalhost && (
           <div className="error-box">
@@ -353,7 +353,7 @@ export default function Caja() {
             Generar un QR nuevo
           </button>
         )}
-        <button className="btn btn-outline" onClick={() => cancelSale(expired ? undefined : sale)}>
+        <button className="btn btn-quiet" onClick={() => cancelSale(expired ? undefined : sale)}>
           Cancelar venta
         </button>
       </div>
@@ -416,7 +416,7 @@ export default function Caja() {
       )}
 
       <button className="btn" disabled={preview === null} onClick={cobrar}>
-        COBRAR — GENERAR QR
+        Cobrar — generar QR
       </button>
 
       {history.length > 0 && (

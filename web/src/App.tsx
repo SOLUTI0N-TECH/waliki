@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Link, Route, Routes } from 'react-router-dom'
 import Caja from './pages/Caja'
 import Home from './pages/Home'
 import Pay from './pages/Pay'
@@ -6,10 +6,20 @@ import Registro from './pages/Registro'
 
 export default function App() {
   return (
-    <>
-      <div className="testnet-banner">
-        MODO PRUEBA · Base Sepolia — los fondos NO son reales
-      </div>
+    <div className="app-shell">
+      <header className="topbar">
+        <Link className="brand" to="/">
+          <span className="brand-mark" />
+          waliki
+        </Link>
+        <span
+          className="env-chip"
+          title="Fase de prueba: red Base Sepolia. Las transacciones son reales y verificables, pero los fondos no tienen valor."
+        >
+          <span className="env-dot" />
+          Fase de prueba
+        </span>
+      </header>
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -18,6 +28,6 @@ export default function App() {
           <Route path="/registro" element={<Registro />} />
         </Routes>
       </main>
-    </>
+    </div>
   )
 }

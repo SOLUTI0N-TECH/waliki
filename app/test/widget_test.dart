@@ -5,7 +5,10 @@ void main() {
   testWidgets('PIN gate renders and asks for the cashier PIN', (tester) async {
     await tester.pumpWidget(const WalikiApp());
     expect(find.text('Ingresa tu PIN de cajero'), findsOneWidget);
-    expect(find.text('waliki'), findsOneWidget);
+    // Wordmark appears twice: the top bar and the sign-in lockup
+    expect(find.text('waliki'), findsNWidgets(2));
+    // The test-phase marker must always be visible — honest, never loud
+    expect(find.text('Fase de prueba'), findsOneWidget);
     // Wrong PIN shows the error and never unlocks
     await tester.ensureVisible(find.text('9'));
     for (var i = 0; i < 4; i++) {
