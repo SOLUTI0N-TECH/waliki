@@ -23,7 +23,8 @@ export default function Home() {
         <button className="btn" onClick={() => navigate(demoSaleUrl())}>
           Generar venta de prueba (Bs 175)
         </button>
-        <Link to="/caja">Caja (cajero) — Paso 4</Link>
+        <Link to="/caja">Caja (cajero)</Link>
+        <Link to="/registro">Registrar mi comercio (dueño)</Link>
       </nav>
       <p className="muted small">
         La venta de prueba apunta al comercio #1 ("Tienda Demo CBBA") en Base Sepolia, con

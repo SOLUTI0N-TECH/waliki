@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBlockNumber, usePublicClient, useReadContract, useWatchContractEvent } from 'wagmi'
 import { formatUnits, parseUnits } from 'viem'
@@ -8,7 +9,7 @@ const CHAIN_ID = 84532
 const ROUTER = deployment.walikiRouter as `0x${string}`
 const EXPLORER = 'https://sepolia.basescan.org'
 const LOG_RANGE = 9900n // public RPCs cap eth_getLogs at 10,000 blocks
-const MERCHANT_ID = BigInt((import.meta.env.VITE_MERCHANT_ID as string | undefined) ?? '1')
+const DEFAULT_MERCHANT_ID = (import.meta.env.VITE_MERCHANT_ID as string | undefined) ?? '1'
 const CAJA_PIN = (import.meta.env.VITE_CAJA_PIN as string | undefined) ?? '1234'
 const QUOTE_MINUTES = 15
 const ZERO_SALE = ('0x' + '0'.repeat(64)) as `0x${string}`
@@ -74,6 +75,14 @@ type HistItem = { sale: Sale; status: 'pagada' | 'vencida'; txHash?: string; lat
 type View = { mode: 'entry' } | { mode: 'qr'; sale: Sale } | { mode: 'paid'; sale: Sale; info: PaidInfo }
 
 export default function Caja() {
+  // Which shop this register charges for: ?m=<id> (from /registro), else the
+  // build default. Any merchant registered on-chain can open its own caja.
+  const [search] = useSearchParams()
+  const MERCHANT_ID = useMemo(() => {
+    const m = search.get('m')
+    return m && /^\d+$/.test(m) && BigInt(m) > 0n ? BigInt(m) : BigInt(DEFAULT_MERCHANT_ID)
+  }, [search])
+
   const [unlocked, setUnlocked] = useState(() => {
     try {
       return sessionStorage.getItem('waliki.caja') === '1'
