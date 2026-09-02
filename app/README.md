@@ -1,17 +1,22 @@
-# waliki_app
+# Waliki — app (demo del Buildathon)
 
-A new Flutter project.
+Caja de cobro **de solo lectura** (JSON-RPC a Base Sepolia — la app jamás firma ni guarda
+llaves) + mockups navegables de las fases 2-3. El cliente paga en la página web que abre el QR.
 
-## Getting Started
+## Correr
 
-This project is a starting point for a Flutter application.
+```bash
+fvm install                # primera vez: descarga el Flutter pineado en .fvmrc
+fvm flutter run -d chrome  # o un dispositivo Android conectado
+```
 
-A few resources to get you started if this is your first Flutter project:
+- PIN del cajero: `1234` (en `lib/config.dart`)
+- El QR codifica `WalikiConfig.payBaseUrl` — editable en la pantalla de cobro (icono lápiz);
+  debe apuntar a la web de pago (IP de red en dev, la URL de Vercel en producción)
+- RPC de respaldo opcional (día del evento): `fvm flutter run --dart-define=WALIKI_RPC=https://...`
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Qué es real y qué es concepto
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+**Real** (lecturas de la blockchain): PIN, inicio con ventas verificadas, COBRAR
+(Bs → QR → pantalla verde disparada por la cadena), historial.
+**Concepto** (banda morada): Modo Fácil (F2), Comercio (F3) y Puntaje — mockups navegables.

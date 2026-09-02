@@ -3,6 +3,10 @@
 class WalikiConfig {
   static const int chainId = 84532; // Base Sepolia
   static const String rpcUrl = 'https://sepolia.base.org';
+
+  /// Optional private fallback RPC (event-day insurance), injected at build
+  /// or run time: --dart-define=WALIKI_RPC=https://... Never committed.
+  static const String rpcFallback = String.fromEnvironment('WALIKI_RPC');
   static const String router = '0xd98869ebf0231ce1a56b145cb83db0ab2b1d382a';
   static const String explorer = 'https://sepolia.basescan.org';
   static const int merchantId = 1; // "Tienda Demo CBBA"

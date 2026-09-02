@@ -47,6 +47,35 @@ waliki/
   docs/        # PASO-0.md (checklist de cuentas) y siguientes
 ```
 
+## Cómo correr el proyecto (dev)
+
+**Prerequisitos**: Node 22+ · para la app: FVM (`dart pub global activate fvm`) — la versión de
+Flutter la fija `app/.fvmrc` y `fvm install` la descarga sola.
+
+Los contratos ya están desplegados en Base Sepolia (direcciones commiteadas en
+`contracts/deployments/`), así que **no necesitas claves ni deploys para correr la web y la app**.
+
+```bash
+# Web — caja (/caja) y página de pago (/pay/:saleId)
+cd web
+cp .env.example .env       # pide el VITE_REOWN_PROJECT_ID por el grupo del equipo
+npm install
+npm run dev -- --host      # --host: para que un teléfono en tu WiFi pueda pagar
+
+# App Flutter (caja solo-lectura + mockups)
+cd app
+fvm install                # primera vez: descarga el SDK pineado
+fvm flutter run -d chrome  # o un dispositivo Android conectado
+
+# Contratos — tests locales (no requiere .env)
+cd contracts
+npm install && npm test
+```
+
+Datos del demo: PIN de la caja **1234** · comercio #1 "Tienda Demo CBBA" · el QR de la app
+codifica la URL de la web de pago y se cambia con el lápiz en la pantalla de cobro. Para
+desplegar contratos o correr scripts on-chain sí necesitas `contracts/.env` (ver `.env.example`).
+
 ## Plan del spike y estado
 - [x] **Paso 0 — Cuentas**: Reown projectId · MetaMask PC + 2 teléfonos · gas de Base Sepolia
 - [x] **Paso 1 — Scaffolding**: `contracts/` compila y testea · `web/` build verificado

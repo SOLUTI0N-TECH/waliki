@@ -9,9 +9,21 @@ import 'config.dart';
 class Rpc {
   static int _id = 0;
 
+  /// Public RPC first; if it fails and a private fallback was injected
+  /// (--dart-define=WALIKI_RPC=...), retry there. Event-day insurance.
   static Future<dynamic> call(String method, List<dynamic> params) async {
+    try {
+      return await _post(WalikiConfig.rpcUrl, method, params);
+    } catch (_) {
+      if (WalikiConfig.rpcFallback.isEmpty) rethrow;
+      return await _post(WalikiConfig.rpcFallback, method, params);
+    }
+  }
+
+  static Future<dynamic> _post(
+      String url, String method, List<dynamic> params) async {
     final res = await http.post(
-      Uri.parse(WalikiConfig.rpcUrl),
+      Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'jsonrpc': '2.0',

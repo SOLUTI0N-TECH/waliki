@@ -1,6 +1,7 @@
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import { baseSepolia } from '@reown/appkit/networks'
+import { fallback, http } from 'wagmi'
 
 // Reown project id lives in web/.env (VITE_REOWN_PROJECT_ID); never hardcode it.
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID as string
@@ -11,10 +12,19 @@ if (!projectId) {
 export const walikiNetwork = baseSepolia
 const networks = [baseSepolia] as [typeof baseSepolia]
 
+// Public RPC first (it allows wide eth_getLogs, which the history needs);
+// the private endpoint from VITE_RPC_URL is an automatic fallback if the
+// public one degrades — event-day insurance. Note: Alchemy's free tier caps
+// eth_getLogs at 10 blocks, so it must never be the primary for logs.
+const rpcFallback = (import.meta.env.VITE_RPC_URL as string | undefined) || undefined
+
 export const wagmiAdapter = new WagmiAdapter({
   networks,
   projectId,
   ssr: false,
+  transports: {
+    [baseSepolia.id]: rpcFallback ? fallback([http(), http(rpcFallback)]) : http(),
+  },
 })
 
 // Module-scope init on purpose: importing this file once (main.tsx) boots the modal.

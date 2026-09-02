@@ -108,6 +108,12 @@ necesita ETH de gas; el sonido en móvil requiere un gesto previo del usuario.
 - `contracts/`: Hardhat 2 + `@nomicfoundation/hardhat-toolbox-viem` (tests mocha/chai +
   chai-as-promised con `hre.viem`). Revert strings en español ASCII (sin acentos). Secretos en
   `contracts/.env`.
+- **RPC híbrido (01/09)**: el público (`sepolia.base.org`) va PRIMERO — permite `eth_getLogs` de
+  10.000 bloques; el endpoint de Alchemy es SOLO fallback (web: `VITE_RPC_URL` →
+  `fallback([http(), http(url)])`; app: `--dart-define=WALIKI_RPC`). ⚠️ El plan gratis de Alchemy
+  limita `eth_getLogs` a 10 BLOQUES — jamás usarlo de primario para logs.
+- Kit demo: `contracts/scripts/prefund-demo.ts` transfiere tUSDT del dueño a los teléfonos
+  (tel #1 `0xbe5d…e22d` ya con ~527 tUSDT; FALTA la dirección del tel #2 — pedirla al usuario).
 - `web/`: npm resolvió **Vite 8 · React 19 · TS 6 · wagmi v3** (lo fija el adapter de AppKit).
 - **wagmi v3 — verificado contra docs (01/09)**: `useAccount`→`useConnection`; las escrituras usan
   `mutate/mutateAsync` (ya NO existe `writeContract` en el retorno); lecturas/receipts sin cambios.
