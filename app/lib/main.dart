@@ -18,6 +18,20 @@ class WalikiApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: kGreen),
           scaffoldBackgroundColor: kBg,
         ),
+        // Phone-first app: on wide screens (web/desktop) render inside a
+        // centered 430px frame; on phones this changes nothing.
+        builder: (context, child) => ColoredBox(
+          color: const Color(0xFFE7EBE7),
+          child: Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 430),
+              decoration: const BoxDecoration(boxShadow: [
+                BoxShadow(color: Color(0x1F000000), blurRadius: 28),
+              ]),
+              child: child,
+            ),
+          ),
+        ),
         home: const PinGate(),
       );
 }

@@ -7,7 +7,7 @@ import { deployment, walikiRouterAbi } from '../contracts/waliki'
 const CHAIN_ID = 84532
 const ROUTER = deployment.walikiRouter as `0x${string}`
 const EXPLORER = 'https://sepolia.basescan.org'
-const FROM_BLOCK = 46249000n // shortly before the router's deploy block
+const LOG_RANGE = 9900n // public RPCs cap eth_getLogs at 10,000 blocks
 const MERCHANT_ID = BigInt((import.meta.env.VITE_MERCHANT_ID as string | undefined) ?? '1')
 const CAJA_PIN = (import.meta.env.VITE_CAJA_PIN as string | undefined) ?? '1234'
 const QUOTE_MINUTES = 15
@@ -166,12 +166,14 @@ export default function Caja() {
     void (async () => {
       let info: Omit<PaidInfo, 'late'> = {}
       try {
+        // A live sale just got paid: the recent window is enough (RPC log cap)
+        const latest = (await publicClient?.getBlockNumber()) ?? 0n
         const logs = await publicClient?.getContractEvents({
           address: ROUTER,
           abi: walikiRouterAbi,
           eventName: 'PaymentReceived',
           args: { merchantId: MERCHANT_ID, saleId: sale.id },
-          fromBlock: FROM_BLOCK,
+          fromBlock: latest > LOG_RANGE ? latest - LOG_RANGE : 0n,
           toBlock: 'latest',
         })
         const log = logs?.[0]

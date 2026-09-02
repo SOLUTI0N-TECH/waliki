@@ -4,7 +4,6 @@ import hre from "hardhat";
 const ROUTER = "0xd98869ebf0231ce1a56b145cb83db0ab2b1d382a";
 const USDT = "0xc0934b34b2b1654ac5dc41b8a867e1227e03093d";
 const OWNER = "0x3ca0e1d199ef95c2074248613a34a17b90702440";
-const FROM_BLOCK = 46249000n;
 
 async function main() {
   const router = await hre.viem.getContractAt("WalikiRouter", ROUTER);
@@ -13,6 +12,8 @@ async function main() {
 
   const latest = await publicClient.getBlockNumber();
   console.log(`Bloque actual: ${latest}`);
+  // Public RPCs cap eth_getLogs at 10,000 blocks: scan the recent window only
+  const FROM_BLOCK = latest > 9000n ? latest - 9000n : 0n;
 
   const pagos = await router.getEvents.PaymentReceived({}, { fromBlock: FROM_BLOCK, toBlock: "latest" });
   console.log(`\nPaymentReceived: ${pagos.length}`);

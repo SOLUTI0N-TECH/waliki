@@ -95,23 +95,58 @@ class Chain {
     return _uint(res.substring(2));
   }
 
+  /// Public RPCs cap eth_getLogs at 10,000 blocks per request.
+  static const int _logRange = 9900;
+
+  static Future<List<dynamic>> _getLogs(
+      List<dynamic> topics, BigInt from, BigInt to) async {
+    return await Rpc.call('eth_getLogs', [
+      {
+        'address': WalikiConfig.router,
+        'fromBlock': '0x${from.toRadixString(16)}',
+        'toBlock': '0x${to.toRadixString(16)}',
+        'topics': topics,
+      }
+    ]) as List<dynamic>;
+  }
+
   /// All PaymentReceived logs for the demo merchant (optionally one sale).
+  /// Scans in windows of <=9,900 blocks to respect the public RPC limit.
   static Future<List<Payment>> payments({String? saleId}) async {
     final topics = <dynamic>[
       paymentReceivedTopic,
       '0x${_word(BigInt.from(WalikiConfig.merchantId))}',
       if (saleId != null) '0x${_wordFromHex(saleId)}',
     ];
-    final logs = await Rpc.call('eth_getLogs', [
-      {
-        'address': WalikiConfig.router,
-        'fromBlock': '0x${WalikiConfig.deployBlock.toRadixString(16)}',
-        'toBlock': 'latest',
-        'topics': topics,
+    final latest = await blockNumber();
+    final range = BigInt.from(_logRange);
+    final windows = <List<BigInt>>[];
+    if (saleId != null) {
+      // A live sale just got paid: the recent window is enough
+      final from = latest > range ? latest - range : BigInt.zero;
+      windows.add([from, latest]);
+    } else {
+      var from = BigInt.from(WalikiConfig.deployBlock);
+      while (from <= latest) {
+        var to = from + range;
+        if (to > latest) to = latest;
+        windows.add([from, to]);
+        from = to + BigInt.one;
       }
-    ]) as List<dynamic>;
+    }
+    final all = <dynamic>[];
+    // Modest parallelism to stay under public RPC rate limits
+    for (var i = 0; i < windows.length; i += 5) {
+      final end = (i + 5 > windows.length) ? windows.length : i + 5;
+      final results = await Future.wait([
+        for (final w in windows.sublist(i, end)) _getLogs(topics, w[0], w[1]),
+      ]);
+      for (final r in results) {
+        all.addAll(r);
+      }
+    }
     return [
-      for (final l in logs)
+      for (final l in all)
         Payment(
           saleId: l['topics'][2] as String,
           payer: '0x${(l['topics'][3] as String).substring(26)}',
