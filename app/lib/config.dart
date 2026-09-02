@@ -14,8 +14,8 @@ class WalikiConfig {
   static const int quoteMinutes = 15;
   static const int deployBlock = 46249000; // shortly before the router deploy
 
-  /// Base URL of the web payment page the QR points to. Editable at runtime
-  /// from the charge screen (until the site lives on a stable Vercel URL).
-  /// Default: the demo PC's LAN address, so phones on the same WiFi can pay.
-  static String payBaseUrl = 'http://192.168.100.29:5173';
+  /// Base URL of the web payment page the QR points to: the public site, so
+  /// any phone can pay over mobile data — no shared WiFi needed.
+  /// Still editable at runtime from the charge screen (pencil icon).
+  static String payBaseUrl = 'https://waliki-gules.vercel.app';
 }

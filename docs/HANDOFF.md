@@ -14,7 +14,7 @@ Proyecto (v4)".
 | Alta autoservicio de comercios | ✅ implementada (falta probar con otra wallet) | `web/src/pages/Registro.tsx` |
 | App Waliki (Flutter) | ✅ caja solo-lectura + mockups; probada en Chrome | `app/` |
 | Mockups de todas las fases | ✅ canvas de diseño + fuentes en el repo | `design/` |
-| Publicación en Vercel | ⏳ pendiente | — |
+| Publicación en Vercel | ✅ en línea: **https://waliki-gules.vercel.app** | proyecto `waliki` (root: `web/`) |
 | APK para teléfonos | ⏳ pendiente (requiere Android SDK) | — |
 | Video de respaldo + ensayo | ⏳ pendiente | — |
 
@@ -60,13 +60,17 @@ imprime Vite como "Network", o la de Vercel cuando exista).
 
 ## 3. Probar el circuito completo (el demo)
 
-1. `cd web && npm run dev -- --host` → copia la URL **Network**.
-2. Abre `/caja` en esa URL (no en localhost) → PIN `1234` → monto `175` → **COBRAR**.
-3. Teléfono en la misma WiFi: escanea el QR con la cámara → conectar → (faucet si hace falta) → aprobar → pagar.
+**Ya no hace falta levantar nada ni compartir WiFi** — el sitio está publicado:
+
+1. Abre **https://waliki-gules.vercel.app/caja** en cualquier dispositivo → PIN `1234`.
+2. Monto `175` → **Cobrar** → aparece el QR.
+3. Con otro teléfono (datos móviles sirven): escanea el QR con la cámara → conectar →
+   (faucet si hace falta) → aprobar → pagar.
 4. La caja se pone **verde sola, con sonido** — disparada por el evento on-chain.
 
-Mismo circuito con la app: `cd app && fvm flutter run -d chrome`, PIN, COBRAR, y ajusta la URL
-base con el lápiz antes de escanear.
+Mismo circuito con la app: `cd app && fvm flutter run -d chrome` → PIN → Cobrar. El QR ya apunta
+al sitio publicado; el lápiz de esa pantalla permite cambiarlo si trabajas contra un `npm run dev`
+local.
 
 ## 4. Mapa del repo
 
