@@ -3,11 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { useBlockNumber, usePublicClient, useReadContract, useWatchContractEvent } from 'wagmi'
 import { formatUnits, parseUnits } from 'viem'
-import { deployment, walikiRouterAbi } from '../contracts/waliki'
+import { walikiRouterAbi } from '../contracts/waliki'
+import { network } from '../lib/network'
 
-const CHAIN_ID = 84532
-const ROUTER = deployment.walikiRouter as `0x${string}`
-const EXPLORER = 'https://sepolia.basescan.org'
+const CHAIN_ID = network.chainId
+const ROUTER = network.router
+const EXPLORER = network.explorer
+const SYMBOL = network.tokenSymbol
+const DECIMALS = network.tokenDecimals
 const LOG_RANGE = 9900n // public RPCs cap eth_getLogs at 10,000 blocks
 const DEFAULT_MERCHANT_ID = (import.meta.env.VITE_MERCHANT_ID as string | undefined) ?? '1'
 const CAJA_PIN = (import.meta.env.VITE_CAJA_PIN as string | undefined) ?? '1234'
@@ -17,7 +20,7 @@ const ZERO_SALE = ('0x' + '0'.repeat(64)) as `0x${string}`
 const nf = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 function fmtUsdt(units: bigint): string {
-  return nf.format(Number(formatUnits(units, 6)))
+  return nf.format(Number(formatUnits(units, DECIMALS)))
 }
 
 function short(v: string): string {
@@ -207,7 +210,7 @@ export default function Caja() {
     armSound()
     const sale: Sale = {
       id: randomSaleId(),
-      amountUnits: parseUnits((bs / r).toFixed(6), 6),
+      amountUnits: parseUnits((bs / r).toFixed(DECIMALS), DECIMALS),
       bs,
       rate: r,
       exp: Math.floor(Date.now() / 1000) + QUOTE_MINUTES * 60,
@@ -272,7 +275,7 @@ export default function Caja() {
         <h1>¡Pago recibido!</h1>
         <div className="success-amount">Bs {nf.format(sale.bs)}</div>
         <div className="success-sub">
-          {fmtUsdt(sale.amountUnits)} tUSDT · venta {short(sale.id)}
+          {fmtUsdt(sale.amountUnits)} {SYMBOL} · venta {short(sale.id)}
         </div>
         {info.late && <span className="chip chip-amber">pago fuera de plazo (cotización vencida)</span>}
         <div className="receipt">
@@ -313,7 +316,7 @@ export default function Caja() {
         <div className="merchant-row">
           <div>
             <div className="muted small">Cobrando</div>
-            <div className="merchant-name">Bs {nf.format(sale.bs)} · {fmtUsdt(sale.amountUnits)} tUSDT</div>
+            <div className="merchant-name">Bs {nf.format(sale.bs)} · {fmtUsdt(sale.amountUnits)} {SYMBOL}</div>
           </div>
           <span className={connectionOk ? 'chip chip-green' : 'chip chip-amber'}>
             {connectionOk ? '● conexión estable' : '● reconectando…'}
@@ -364,7 +367,7 @@ export default function Caja() {
   const rateValue = parseLocalNumber(rate)
   const preview =
     Number.isFinite(bsValue) && Number.isFinite(rateValue)
-      ? parseUnits((bsValue / rateValue).toFixed(6), 6)
+      ? parseUnits((bsValue / rateValue).toFixed(DECIMALS), DECIMALS)
       : null
 
   return (
@@ -380,7 +383,7 @@ export default function Caja() {
       </div>
 
       <div className="wallet-row">
-        <span className="muted small">Tasa del comercio (Bs por USDT)</span>
+        <span className="muted small">Tasa del comercio (Bs por {SYMBOL})</span>
         <input
           className="rate-input"
           inputMode="decimal"
@@ -412,7 +415,7 @@ export default function Caja() {
         }}
       />
       {preview !== null && (
-        <div className="muted center">≈ {fmtUsdt(preview)} tUSDT · cotización congelada por {QUOTE_MINUTES} min</div>
+        <div className="muted center">≈ {fmtUsdt(preview)} {SYMBOL} · cotización congelada por {QUOTE_MINUTES} min</div>
       )}
 
       <button className="btn" disabled={preview === null} onClick={cobrar}>

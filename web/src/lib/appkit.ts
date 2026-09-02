@@ -1,7 +1,7 @@
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { baseSepolia } from '@reown/appkit/networks'
 import { fallback, http } from 'wagmi'
+import { network } from './network'
 
 // Reown project id lives in web/.env (VITE_REOWN_PROJECT_ID); never hardcode it.
 const projectId = import.meta.env.VITE_REOWN_PROJECT_ID as string
@@ -9,8 +9,8 @@ if (!projectId) {
   throw new Error('Falta VITE_REOWN_PROJECT_ID en web/.env (ver web/.env.example)')
 }
 
-export const walikiNetwork = baseSepolia
-const networks = [baseSepolia] as [typeof baseSepolia]
+export const walikiNetwork = network.appkitNetwork
+const networks = [walikiNetwork] as [typeof walikiNetwork]
 
 // Public RPC first (it allows wide eth_getLogs, which the history needs);
 // the private endpoint from VITE_RPC_URL is an automatic fallback if the
@@ -23,7 +23,7 @@ export const wagmiAdapter = new WagmiAdapter({
   projectId,
   ssr: false,
   transports: {
-    [baseSepolia.id]: rpcFallback ? fallback([http(), http(rpcFallback)]) : http(),
+    [walikiNetwork.id]: rpcFallback ? fallback([http(), http(rpcFallback)]) : http(),
   },
 })
 
@@ -31,11 +31,11 @@ export const wagmiAdapter = new WagmiAdapter({
 createAppKit({
   adapters: [wagmiAdapter],
   networks,
-  defaultNetwork: baseSepolia,
+  defaultNetwork: walikiNetwork,
   projectId,
   metadata: {
     name: 'Waliki',
-    description: 'Cobros en USDT sin custodia (testnet)',
+    description: 'Cobros en USDT sin custodia',
     url: window.location.origin,
     icons: [],
   },

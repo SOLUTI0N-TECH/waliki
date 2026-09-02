@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react'
 import { useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
-import { deployment, walikiRouterAbi } from '../contracts/waliki'
+import { walikiRouterAbi } from '../contracts/waliki'
 import { walikiNetwork } from '../lib/appkit'
+import { network } from '../lib/network'
 
-const CHAIN_ID = 84532
-const ROUTER = deployment.walikiRouter as `0x${string}`
-const EXPLORER = 'https://sepolia.basescan.org'
+const CHAIN_ID = network.chainId
+const ROUTER = network.router
+const EXPLORER = network.explorer
 
 function short(v: string): string {
   return v.length > 12 ? `${v.slice(0, 6)}…${v.slice(-4)}` : v

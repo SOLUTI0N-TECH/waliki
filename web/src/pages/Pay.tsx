@@ -3,20 +3,23 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react'
 import { useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
 import { formatUnits } from 'viem'
-import { deployment, testUSDTAbi, walikiRouterAbi } from '../contracts/waliki'
+import { testUSDTAbi, walikiRouterAbi } from '../contracts/waliki'
 import { walikiNetwork } from '../lib/appkit'
+import { network } from '../lib/network'
 
-const CHAIN_ID = 84532
-const ROUTER = deployment.walikiRouter as `0x${string}`
-const USDT = deployment.testUSDT as `0x${string}`
-const EXPLORER = 'https://sepolia.basescan.org'
+const CHAIN_ID = network.chainId
+const ROUTER = network.router
+const USDT = network.token
+const EXPLORER = network.explorer
+const SYMBOL = network.tokenSymbol
+const DECIMALS = network.tokenDecimals
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000' as `0x${string}`
 const ZERO_SALE = ('0x' + '0'.repeat(64)) as `0x${string}`
 
 const nf = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 function fmtUsdt(units: bigint): string {
-  return nf.format(Number(formatUnits(units, 6)))
+  return nf.format(Number(formatUnits(units, DECIMALS)))
 }
 
 function short(addr: string): string {
@@ -175,10 +178,10 @@ export default function Pay() {
         <div className="success-check">✓</div>
         <h1>¡Pago enviado!</h1>
         <div className="success-amount">
-          {sale.bs ? `Bs ${nf.format(Number(sale.bs))}` : `${fmtUsdt(amount)} USDT`}
+          {sale.bs ? `Bs ${nf.format(Number(sale.bs))}` : `${fmtUsdt(amount)} ${SYMBOL}`}
         </div>
         <div className="success-sub">
-          {fmtUsdt(amount)} tUSDT · {merchantName ?? `comercio #${sale.merchantId}`}
+          {fmtUsdt(amount)} {SYMBOL} · {merchantName ?? `comercio #${sale.merchantId}`}
         </div>
         <div className="receipt">
           <div className="row">
@@ -211,7 +214,7 @@ export default function Pay() {
         <h1>Esta venta ya está pagada</h1>
         <p>
           La venta <span className="addr">{short(sale.id ?? '')}</span> ya registra un pago de{' '}
-          <strong>{fmtUsdt(paidRead.data ?? 0n)} tUSDT</strong> en la blockchain.
+          <strong>{fmtUsdt(paidRead.data ?? 0n)} {SYMBOL}</strong> en la blockchain.
         </p>
         <p className="muted">Si necesitas hacer otro cobro, pide al cajero un QR nuevo.</p>
       </div>
@@ -236,7 +239,7 @@ export default function Pay() {
 
         <div className="amount-block">
           {sale.bs && <div className="amount-bs">Bs {nf.format(Number(sale.bs))}</div>}
-          <div className="amount-usdt">{fmtUsdt(amount)} tUSDT</div>
+          <div className="amount-usdt">{fmtUsdt(amount)} {SYMBOL}</div>
           <div className="chips">
             {sale.rate && <span className="chip">Tasa Bs {sale.rate} = 1 USDT</span>}
             {remaining !== null && !expired && (
@@ -252,7 +255,7 @@ export default function Pay() {
           <div className="wallet-row">
             <span className="addr">{short(account)}</span>
             <span className="muted">
-              saldo: {balance !== undefined ? `${fmtUsdt(balance)} tUSDT` : '…'}
+              saldo: {balance !== undefined ? `${fmtUsdt(balance)} ${SYMBOL}` : '…'}
             </span>
           </div>
         )}
@@ -267,7 +270,7 @@ export default function Pay() {
           </button>
         ) : wrongNetwork ? (
           <button className="btn" onClick={() => switchNetwork(walikiNetwork)}>
-            Cambiar a Base Sepolia
+            Cambiar a {walikiNetwork.name}
           </button>
         ) : needsApprove ? (
           <button className="btn" disabled={busyApprove || needsFaucet} onClick={() => {
@@ -280,7 +283,7 @@ export default function Pay() {
               chainId: CHAIN_ID,
             })
           }}>
-            {busyApprove ? 'Aprobando…' : `Aprobar ${fmtUsdt(amount)} tUSDT · firma 1 de 2`}
+            {busyApprove ? 'Aprobando…' : `Aprobar ${fmtUsdt(amount)} ${SYMBOL} · firma 1 de 2`}
           </button>
         ) : (
           <button className="btn" disabled={busyPay || needsFaucet} onClick={() => {
@@ -293,11 +296,11 @@ export default function Pay() {
               chainId: CHAIN_ID,
             })
           }}>
-            {busyPay ? 'Pagando…' : `Pagar ${fmtUsdt(amount)} tUSDT · firma 2 de 2`}
+            {busyPay ? 'Pagando…' : `Pagar ${fmtUsdt(amount)} ${SYMBOL} · firma 2 de 2`}
           </button>
         )}
 
-        {needsFaucet && !expired && (
+        {network.isTestnet && needsFaucet && !expired && (
           <button className="btn btn-outline" disabled={busyFaucet} onClick={() => {
             faucetTx.reset()
             faucetTx.mutate({
@@ -307,14 +310,14 @@ export default function Pay() {
               chainId: CHAIN_ID,
             })
           }}>
-            {busyFaucet ? 'Reclamando…' : 'Te faltan tUSDT — obtener 100 del faucet de prueba'}
+            {busyFaucet ? 'Reclamando…' : `Te faltan ${SYMBOL} — obtener 100 del faucet de prueba`}
           </button>
         )}
 
         {isConnected && !wrongNetwork && !expired && (
           <div className="steps muted small">
-            El USDT se paga en 2 firmas: primero <strong>aprobar</strong>, luego{' '}
-            <strong>pagar</strong>. El gas lo cubre el ETH de prueba de tu billetera.
+            El pago se hace en 2 firmas: primero <strong>aprobar</strong>, luego{' '}
+            <strong>pagar</strong>. El gas lo cubre {walikiNetwork.nativeCurrency.symbol} de tu billetera.
           </div>
         )}
 
@@ -333,7 +336,7 @@ export default function Pay() {
       </div>
 
       <p className="muted small trust">
-        Los tUSDT viajan directo de tu billetera a la del comercio. Waliki nunca toca los fondos —
+        Los {SYMBOL} viajan directo de tu billetera a la del comercio. Waliki nunca toca los fondos —
         solo lee la blockchain.
       </p>
     </div>

@@ -23,6 +23,17 @@ const config: HardhatUserConfig = {
       chainId: 84532,
       accounts: deployerKey ? [deployerKey] : [],
     },
+    // Mainnets — deploy with TOKEN_ADDRESS set to the real stablecoin
+    base: {
+      url: process.env.BASE_RPC_URL || "https://mainnet.base.org",
+      chainId: 8453,
+      accounts: deployerKey ? [deployerKey] : [],
+    },
+    bsc: {
+      url: process.env.BSC_RPC_URL || "https://bsc-dataseed.binance.org",
+      chainId: 56,
+      accounts: deployerKey ? [deployerKey] : [],
+    },
   },
   etherscan: {
     apiKey: BASESCAN_API_KEY ?? "",
