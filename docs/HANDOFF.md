@@ -12,7 +12,7 @@ Proyecto (v4)".
 | Página de pago del cliente | ✅ probada con wallets reales (PC + teléfono) | `web/src/pages/Pay.tsx` |
 | Caja (cobro Bs→QR→verde) | ✅ circuito completo probado | `web/src/pages/Caja.tsx` |
 | Alta autoservicio de comercios | ✅ implementada (falta probar con otra wallet) | `web/src/pages/Registro.tsx` |
-| App Waliki (Flutter) | ✅ caja solo-lectura + mockups; probada en Chrome | `app/` |
+| App Waliki (Flutter) | ✅ onboarding por rol, alta de comercio, vinculación de cajeros, caja, historial y reportes con CSV | `app/` |
 | Mockups de todas las fases | ✅ canvas de diseño + fuentes en el repo | `design/` |
 | Publicación en Vercel | ✅ en línea: **https://waliki-gules.vercel.app** | proyecto `waliki` (root: `web/`) |
 | APK para teléfonos | ⏳ pendiente (requiere Android SDK) | — |

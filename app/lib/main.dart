@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'config.dart';
 import 'screens/home.dart';
+import 'screens/mis_comercios.dart';
+import 'screens/welcome.dart';
+import 'session.dart';
 import 'ui.dart';
 
 void main() => runApp(const WalikiApp());
@@ -38,13 +40,56 @@ class WalikiApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const PinGate(),
+        home: const Bootstrap(),
       );
+}
+
+/// Decides where the app opens: welcome on a fresh install, the owner panel
+/// for a linked owner, the PIN gate for a linked register.
+class Bootstrap extends StatefulWidget {
+  const Bootstrap({super.key});
+
+  @override
+  State<Bootstrap> createState() => _BootstrapState();
+}
+
+class _BootstrapState extends State<Bootstrap> {
+  late final Future<Session> _session = Session.load();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Session>(
+      future: _session,
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 34,
+                height: 34,
+                child: CircularProgressIndicator(strokeWidth: 3, color: kBrand),
+              ),
+            ),
+          );
+        }
+        final s = snap.data!;
+        if (s.role == Role.cajero && s.merchantId != null) {
+          return PinGate(session: s, merchantId: s.merchantId!);
+        }
+        if (s.role == Role.duenio && s.ownerAddress != null) {
+          return MisComerciosScreen(session: s);
+        }
+        return WelcomeScreen(session: s);
+      },
+    );
+  }
 }
 
 /// Employee mode: the cashier signs in with a PIN — never with a wallet.
 class PinGate extends StatefulWidget {
-  const PinGate({super.key});
+  final Session session;
+  final int merchantId;
+  const PinGate({super.key, required this.session, required this.merchantId});
 
   @override
   State<PinGate> createState() => _PinGateState();
@@ -61,12 +106,16 @@ class _PinGateState extends State<PinGate> {
         if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
         return;
       }
-      if (_pin.length >= 4) return;
+      final expected = widget.session.pin ?? '1234';
+      if (_pin.length >= expected.length) return;
       _pin += key;
-      if (_pin.length == 4) {
-        if (_pin == WalikiConfig.cajaPin) {
+      if (_pin.length == expected.length) {
+        if (_pin == expected) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(
+              builder: (_) => HomeScreen(
+                  session: widget.session, merchantId: widget.merchantId),
+            ),
           );
         } else {
           _pin = '';
@@ -78,6 +127,7 @@ class _PinGateState extends State<PinGate> {
 
   @override
   Widget build(BuildContext context) {
+    final len = (widget.session.pin ?? '1234').length;
     return Scaffold(
       appBar: const WalikiBar(),
       body: SafeArea(
@@ -86,20 +136,25 @@ class _PinGateState extends State<PinGate> {
             children: [
               const SizedBox(height: 40),
               Text('waliki',
-                  style: wk(size: 40, weight: 800, color: kBrandInk, tracking: -0.035)),
+                  style: wk(
+                      size: 40, weight: 800, color: kBrandInk, tracking: -0.035)),
               const SizedBox(height: 4),
               Text('La caja que verifica en la blockchain',
                   style: wk(size: 13.5, weight: 500, color: kInkSoft)),
               const SizedBox(height: 24),
-              const WChip('Tienda Demo CBBA · Caja 1'),
+              WChip('Caja del comercio #${widget.merchantId}'),
               const SizedBox(height: 20),
-              Text(_error ? 'PIN incorrecto — intenta de nuevo' : 'Ingresa tu PIN de cajero',
-                  style: wk(size: 15, weight: 700, color: _error ? kDanger : kInk)),
+              Text(
+                  _error
+                      ? 'PIN incorrecto — intenta de nuevo'
+                      : 'Ingresa tu PIN de cajero',
+                  style: wk(
+                      size: 15, weight: 700, color: _error ? kDanger : kInk)),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  for (var i = 0; i < 4; i++)
+                  for (var i = 0; i < len; i++)
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 140),
                       width: 13,
@@ -109,7 +164,9 @@ class _PinGateState extends State<PinGate> {
                         shape: BoxShape.circle,
                         color: i < _pin.length ? kBrand : Colors.transparent,
                         border: Border.all(
-                            color: i < _pin.length ? kBrand : const Color(0xFFC6CEC8),
+                            color: i < _pin.length
+                                ? kBrand
+                                : const Color(0xFFC6CEC8),
                             width: 2),
                       ),
                     ),
@@ -168,7 +225,8 @@ class _Keypad extends StatelessWidget {
                         child: k == '<'
                             ? const Icon(Icons.backspace_outlined,
                                 color: kInkSoft, size: 22)
-                            : Text(k, style: wk(size: 25, weight: 600, tabular: true)),
+                            : Text(k,
+                                style: wk(size: 25, weight: 600, tabular: true)),
                       ),
                     ),
                   ),

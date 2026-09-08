@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../chain.dart';
 import '../config.dart';
+import '../session.dart';
 import '../ui.dart';
 
 enum _Phase { entry, qr, paid }
@@ -23,7 +24,10 @@ class _Sale {
 /// The charge flow: amount in Bs -> QR -> green screen driven by the chain.
 /// Read-only by design: the customer pays on the web page the QR opens.
 class CobrarScreen extends StatefulWidget {
-  const CobrarScreen({super.key});
+  final Session session;
+  final int merchantId;
+  const CobrarScreen(
+      {super.key, required this.session, required this.merchantId});
 
   @override
   State<CobrarScreen> createState() => _CobrarScreenState();
@@ -32,7 +36,8 @@ class CobrarScreen extends StatefulWidget {
 class _CobrarScreenState extends State<CobrarScreen> {
   _Phase _phase = _Phase.entry;
   String _amount = '';
-  final _rateCtrl = TextEditingController(text: '14.00');
+  late final TextEditingController _rateCtrl =
+      TextEditingController(text: widget.session.rate);
   _Sale? _sale;
   Payment? _payment;
   bool _late = false;
@@ -94,7 +99,7 @@ class _CobrarScreenState extends State<CobrarScreen> {
     final sale = _sale;
     if (sale == null || _phase != _Phase.qr) return;
     try {
-      final paid = await Chain.paidAmount(WalikiConfig.merchantId, sale.id);
+      final paid = await Chain.paidAmount(widget.merchantId, sale.id);
       if (paid > BigInt.zero && mounted && _phase == _Phase.qr) {
         _late = DateTime.now().millisecondsSinceEpoch ~/ 1000 > sale.exp;
         _phase = _Phase.paid;
@@ -104,7 +109,8 @@ class _CobrarScreenState extends State<CobrarScreen> {
         setState(() {});
         // Backfill payer/tx from the event log (best-effort)
         try {
-          final logs = await Chain.payments(saleId: sale.id);
+          final logs = await Chain.payments(
+              merchantId: widget.merchantId, saleId: sale.id);
           if (logs.isNotEmpty && mounted) setState(() => _payment = logs.first);
         } catch (_) {
           // details are optional; the green screen never waits for them
@@ -173,7 +179,11 @@ class _CobrarScreenState extends State<CobrarScreen> {
                     style: wk(size: 14.5, weight: 700, tabular: true),
                     decoration: const InputDecoration(
                         isDense: true, border: InputBorder.none),
-                    onChanged: (_) => setState(() {}),
+                    onChanged: (v) {
+                      widget.session.rate = v;
+                      widget.session.save();
+                      setState(() {});
+                    },
                   ),
                 ),
                 Text('= 1 USDT',
@@ -216,7 +226,7 @@ class _CobrarScreenState extends State<CobrarScreen> {
     final left = (sale.exp - _now).clamp(0, 1 << 31);
     final bsParam = sale.bs.toStringAsFixed(2);
     final url =
-        '${WalikiConfig.payBaseUrl}/pay/${sale.id}?m=${WalikiConfig.merchantId}&a=${sale.amountUnits}&bs=$bsParam&r=${sale.rate.toStringAsFixed(2)}&exp=${sale.exp}';
+        '${WalikiConfig.payBaseUrl}/pay/${sale.id}?m=${widget.merchantId}&a=${sale.amountUnits}&bs=$bsParam&r=${sale.rate.toStringAsFixed(2)}&exp=${sale.exp}';
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(

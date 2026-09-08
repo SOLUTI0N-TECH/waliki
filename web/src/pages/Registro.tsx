@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react'
 import { useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
 import { walikiRouterAbi } from '../contracts/waliki'
@@ -24,8 +24,10 @@ function errText(error: unknown): string {
 /// Self-service onboarding: the owner signs ONE transaction and the shop
 /// exists on-chain with its payout address locked to the owner's wallet.
 export default function Registro() {
-  const [name, setName] = useState('')
-  const [payout, setPayout] = useState('')
+  // The Flutter app hands the form over prefilled: /registro?n=<name>&p=<payout>
+  const [search] = useSearchParams()
+  const [name, setName] = useState(() => (search.get('n') ?? '').slice(0, 48))
+  const [payout, setPayout] = useState(() => search.get('p') ?? '')
 
   const { open } = useAppKit()
   const { address, isConnected } = useAppKitAccount()

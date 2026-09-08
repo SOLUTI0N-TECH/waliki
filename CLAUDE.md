@@ -92,11 +92,18 @@ waliki/
 - [x] Paso 4 — caja: COMPLETA y CIRCUITO PROBADO en dispositivos reales (01/09): PIN · tasa
   manual · Bs→QR · verde por DOS vías (`watchContractEvent` por saleId + polling `paidAmount`) ·
   sonido · semáforo · historial de sesión
-- [ ] Paso 4b — app Flutter (`app/` con FVM 3.47): IMPLEMENTADA — PIN · inicio con ventas reales
-  (JSON-RPC) · cobrar (Bs→QR→verde por polling `paidAmount` + backfill del evento) · historial
-  on-chain (`eth_getLogs`) · mockups F2/F3/puntaje. `flutter analyze` limpio, widget test verde,
-  `build web` ok. FALTA: probarla en teléfono (`fvm flutter run`; APK requiere Android SDK); la
-  URL base del QR se edita dentro de la app (apunta a la web de pago; Vercel pendiente)
+- [ ] Paso 4b — app Flutter (`app/` con FVM 3.47): IMPLEMENTADA con onboarding completo —
+  **welcome con selección de rol** → dueño (conecta billetera por dirección → **mis comercios**
+  → **crear comercio** delegando la firma a la web + polling de la cadena → **vincular cajero**
+  con código `W<id>-<pin>`) / cajero (código → PIN → caja). Además: cobrar (Bs→QR→verde por
+  polling `paidAmount`), historial on-chain y **reportes** (períodos, KPIs, barras por día,
+  export CSV al portapapeles). Sesión persistida con `shared_preferences`.
+  `flutter analyze` limpio, 5 tests verdes, `build web` ok.
+  FALTA: probarla en teléfono (`fvm flutter run`; APK requiere Android SDK).
+  ⚠️ `reown_appkit` NO sirve aquí: su pubspec solo declara android/ios (web comentado), y el
+  equipo corre la app en Chrome. Por eso la app **no firma**: delega la firma a la web
+  (`/registro?n=&p=`) y detecta el resultado leyendo la cadena. No reintentar esa dependencia
+  sin resolver antes el APK.
 - [ ] Paso 5 — Vercel + pago real desde teléfono · kit demo + video + ensayo del pitch
 
 **Criterios de "hecho"**: conectar en escritorio Y teléfono desde el QR · red forzada

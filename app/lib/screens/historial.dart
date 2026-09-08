@@ -4,7 +4,8 @@ import '../chain.dart';
 import '../ui.dart';
 
 class HistorialScreen extends StatefulWidget {
-  const HistorialScreen({super.key});
+  final int merchantId;
+  const HistorialScreen({super.key, required this.merchantId});
 
   @override
   State<HistorialScreen> createState() => _HistorialScreenState();
@@ -16,7 +17,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
   @override
   void initState() {
     super.initState();
-    _future = Chain.payments();
+    _future = Chain.payments(merchantId: widget.merchantId);
   }
 
   @override
@@ -28,7 +29,8 @@ class _HistorialScreenState extends State<HistorialScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, size: 20, color: kInkSoft),
-            onPressed: () => setState(() => _future = Chain.payments()),
+            onPressed: () => setState(
+                () => _future = Chain.payments(merchantId: widget.merchantId)),
           ),
         ],
       ),

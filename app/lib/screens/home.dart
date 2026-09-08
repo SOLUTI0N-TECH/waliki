@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../chain.dart';
-import '../config.dart';
+import '../session.dart';
 import '../ui.dart';
 import 'cobrar.dart';
 import 'concepto.dart';
 import 'historial.dart';
+import 'reportes.dart';
+import 'vincular_caja.dart';
+import 'welcome.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final Session session;
+  final int merchantId;
+  const HomeScreen({super.key, required this.session, required this.merchantId});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<String> _name;
+  late Future<Merchant> _merchant;
   late Future<List<Payment>> _payments;
 
   @override
@@ -25,14 +30,59 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _reload() {
-    _name = Chain.merchantName(WalikiConfig.merchantId);
-    _payments = Chain.payments();
+    _merchant = Chain.merchant(widget.merchantId);
+    _payments = Chain.payments(merchantId: widget.merchantId);
+  }
+
+  Future<void> _menu(String value) async {
+    switch (value) {
+      case 'vincular':
+        final m = await _merchant;
+        if (!mounted) return;
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) =>
+                VincularCajaScreen(session: widget.session, merchant: m)));
+      case 'salir':
+        await widget.session.clear();
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+              builder: (_) => WelcomeScreen(session: widget.session)),
+          (route) => false,
+        );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final esDuenio = widget.session.role == Role.duenio;
     return Scaffold(
-      appBar: const WalikiBar(),
+      appBar: WalikiBar(
+        actions: [
+          IconButton(
+            tooltip: 'Actualizar',
+            icon: const Icon(Icons.refresh_rounded, size: 20, color: kInkSoft),
+            onPressed: () => setState(_reload),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded, size: 20, color: kInkSoft),
+            onSelected: _menu,
+            itemBuilder: (context) => [
+              if (esDuenio)
+                PopupMenuItem(
+                  value: 'vincular',
+                  child: Text('Vincular cajero',
+                      style: wk(size: 14, weight: 600)),
+                ),
+              PopupMenuItem(
+                value: 'salir',
+                child: Text(esDuenio ? 'Desconectar' : 'Desvincular caja',
+                    style: wk(size: 14, weight: 600)),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
@@ -44,16 +94,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: FutureBuilder<String>(
-                      future: _name,
+                    child: FutureBuilder<Merchant>(
+                      future: _merchant,
                       builder: (context, snap) => Text(
-                        snap.data ?? 'Cargando comercio…',
+                        snap.data?.displayName ?? 'Cargando comercio…',
                         style: wk(size: 24, weight: 800, tracking: -0.03),
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const WChip('Caja 1 · Cajero', bg: kSurface2, fg: kInkSoft),
+                  WChip(esDuenio ? 'Dueño' : 'Cajero',
+                      bg: kSurface2, fg: kInkSoft),
                 ],
               ),
               const SizedBox(height: 2),
@@ -90,7 +141,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               list == null
                                   ? 'consultando la cadena…'
                                   : '${list.length} pagos on-chain, auditables por cualquiera',
-                              style: wk(size: 12.5, weight: 500, color: kInkSoft),
+                              style:
+                                  wk(size: 12.5, weight: 500, color: kInkSoft),
                             ),
                           ),
                         ]),
@@ -101,12 +153,49 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 14),
               PrimaryButton('Cobrar', onTap: () async {
-                await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const CobrarScreen()));
+                await Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => CobrarScreen(
+                          session: widget.session,
+                          merchantId: widget.merchantId,
+                        )));
                 setState(_reload);
               }),
               const SizedBox(height: 22),
-              Text('MÁS DE WALIKI',
+              Text('TU COMERCIO',
+                  style: wk(
+                      size: 11, weight: 700, color: kInkSoft, tracking: 0.04)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ActionCard(
+                      icon: Icons.receipt_long_rounded,
+                      iconColor: kBrand,
+                      title: 'Historial',
+                      subtitle: 'Cada venta, verificada en la cadena',
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) =>
+                              HistorialScreen(merchantId: widget.merchantId))),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ActionCard(
+                      icon: Icons.insights_rounded,
+                      iconColor: kBrand,
+                      title: 'Reportes',
+                      subtitle: 'Totales, ticket promedio y CSV',
+                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => ReportesScreen(
+                                session: widget.session,
+                                merchantId: widget.merchantId,
+                              ))),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              Text('WALIKI COMPLETO',
                   style: wk(
                       size: 11, weight: 700, color: kInkSoft, tracking: 0.04)),
               const SizedBox(height: 10),
@@ -119,12 +208,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 childAspectRatio: 1.32,
                 children: [
                   _ActionCard(
-                    icon: Icons.receipt_long_rounded,
-                    iconColor: kBrand,
-                    title: 'Historial',
-                    subtitle: 'Cada venta, verificada en la cadena',
+                    icon: Icons.account_balance_wallet_rounded,
+                    iconColor: kViolet,
+                    title: 'Saldo y billetera',
+                    subtitle: 'Compra saldo con QR o tarjeta',
+                    tag: 'Fase 2',
                     onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const HistorialScreen())),
+                        builder: (_) => const ModoFacilScreen())),
                   ),
                   _ActionCard(
                     icon: Icons.storefront_rounded,
@@ -135,25 +225,19 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: () => Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => const ComercioScreen())),
                   ),
-                  _ActionCard(
-                    icon: Icons.account_balance_wallet_rounded,
-                    iconColor: kViolet,
-                    title: 'Saldo y billetera',
-                    subtitle: 'Compra saldo con QR o tarjeta',
-                    tag: 'Fase 2',
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const ModoFacilScreen())),
-                  ),
-                  _ActionCard(
-                    icon: Icons.trending_up_rounded,
-                    iconColor: kViolet,
-                    title: 'Puntaje',
-                    subtitle: 'Tu historial vale: adelantos',
-                    tag: 'Pronto',
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const PuntajeScreen())),
-                  ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              _ActionCard(
+                icon: Icons.trending_up_rounded,
+                iconColor: kViolet,
+                title: 'Puntaje comercial',
+                subtitle:
+                    'Tu historial de ventas te abre la puerta a un adelanto',
+                tag: 'Pronto',
+                wide: true,
+                onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const PuntajeScreen())),
               ),
               const SizedBox(height: 18),
               Center(
@@ -177,6 +261,7 @@ class _ActionCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String? tag;
+  final bool wide;
   final VoidCallback onTap;
 
   const _ActionCard({
@@ -186,6 +271,7 @@ class _ActionCard extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.tag,
+    this.wide = false,
   });
 
   @override
@@ -201,26 +287,56 @@ class _ActionCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Icon(icon, color: iconColor, size: 23),
-                  if (tag != null)
-                    WChip(tag!, bg: kVioletTint, fg: kViolet),
-                ],
-              ),
-              const Spacer(),
-              Text(title, style: wk(size: 14.5, weight: 700, tracking: -0.02)),
-              const SizedBox(height: 3),
-              Text(subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: wk(size: 11, weight: 500, color: kInkSoft, height: 1.35)),
-            ],
-          ),
+          child: wide
+              ? Row(
+                  children: [
+                    Icon(icon, color: iconColor, size: 23),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style:
+                                  wk(size: 14.5, weight: 700, tracking: -0.02)),
+                          const SizedBox(height: 3),
+                          Text(subtitle,
+                              style: wk(
+                                  size: 11,
+                                  weight: 500,
+                                  color: kInkSoft,
+                                  height: 1.35)),
+                        ],
+                      ),
+                    ),
+                    if (tag != null) WChip(tag!, bg: kVioletTint, fg: kViolet),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Icon(icon, color: iconColor, size: 23),
+                        if (tag != null)
+                          WChip(tag!, bg: kVioletTint, fg: kViolet),
+                      ],
+                    ),
+                    const Spacer(),
+                    Text(title,
+                        style: wk(size: 14.5, weight: 700, tracking: -0.02)),
+                    const SizedBox(height: 3),
+                    Text(subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: wk(
+                            size: 11,
+                            weight: 500,
+                            color: kInkSoft,
+                            height: 1.35)),
+                  ],
+                ),
         ),
       ),
     );
