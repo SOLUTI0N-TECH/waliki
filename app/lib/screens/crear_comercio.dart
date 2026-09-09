@@ -7,6 +7,7 @@ import '../chain.dart';
 import '../config.dart';
 import '../session.dart';
 import '../ui.dart';
+import '../wallet.dart';
 
 enum _Step { form, waiting, done }
 
@@ -29,6 +30,7 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
 
   _Step _step = _Step.form;
   Set<int> _before = {};
+  bool _inApp = false;
   Merchant? _created;
   String? _error;
   Timer? _poll;
@@ -60,13 +62,33 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
       _before = {};
     }
 
-    final uri = Uri.parse('${WalikiConfig.payBaseUrl}/registro').replace(
-      queryParameters: {
-        'n': _name.text.trim(),
-        'p': _payout.text.trim(),
-      },
-    );
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    // With a wallet connected we sign right here; otherwise we hand the
+    // prefilled form to the web page, which is already proven to work.
+    _inApp = Wallet.instance.isConnected;
+    if (_inApp) {
+      try {
+        await Wallet.instance.registerMerchant(
+          payout: _payout.text.trim(),
+          name: _name.text.trim(),
+        );
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _step = _Step.form;
+            _error = 'La billetera rechazo o no pudo firmar: $e';
+          });
+        }
+        return;
+      }
+    } else {
+      final uri = Uri.parse('${WalikiConfig.payBaseUrl}/registro').replace(
+        queryParameters: {
+          'n': _name.text.trim(),
+          'p': _payout.text.trim(),
+        },
+      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
 
     _poll = Timer.periodic(const Duration(seconds: 4), (_) {
       setState(() => _seconds += 4);
@@ -152,8 +174,11 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
                 onTap: _valid ? _firmar : null),
             const SizedBox(height: 10),
             Text(
-              'Se abrirá Waliki web con estos datos ya cargados. Firmas ahí con tu '
-              'billetera y vuelves: la app detecta tu comercio sola.',
+              Wallet.instance.isConnected
+                  ? 'Tu billetera te pedirá aprobar la transacción. Al confirmarse, '
+                      'la app detecta tu comercio sola.'
+                  : 'Se abrirá Waliki web con estos datos ya cargados. Firmas ahí con '
+                      'tu billetera y vuelves: la app detecta tu comercio sola.',
               textAlign: TextAlign.center,
               style: wk(size: 12, weight: 500, color: kInkSoft, height: 1.5),
             ),
@@ -176,8 +201,11 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
                 style: wk(size: 20, weight: 800, tracking: -0.03)),
             const SizedBox(height: 10),
             Text(
-              'Completa el registro en la ventana que se abrió. Cuando la '
-              'transacción entre en un bloque, la app lo detecta sola.',
+              _inApp
+                  ? 'Aprueba la transacción en tu billetera. Cuando entre en un '
+                      'bloque, la app lo detecta sola.'
+                  : 'Completa el registro en la ventana que se abrió. Cuando la '
+                      'transacción entre en un bloque, la app lo detecta sola.',
               textAlign: TextAlign.center,
               style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
             ),

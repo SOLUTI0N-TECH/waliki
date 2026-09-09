@@ -11,6 +11,12 @@ class WalikiConfig {
   static const String explorer = 'https://sepolia.basescan.org';
   static const int merchantId = 1; // "Tienda Demo CBBA"
   static const String cajaPin = '1234';
+
+  /// Reown (WalletConnect) project id for the in-app wallet connection.
+  /// Injected at build time so it is never committed:
+  ///   `--dart-define=WALIKI_REOWN_ID=<project id>`
+  static const String reownProjectId =
+      String.fromEnvironment('WALIKI_REOWN_ID');
   static const int quoteMinutes = 15;
   static const int deployBlock = 46249000; // shortly before the router deploy
 

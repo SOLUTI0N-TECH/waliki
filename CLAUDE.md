@@ -100,10 +100,16 @@ waliki/
   export CSV al portapapeles). Sesión persistida con `shared_preferences`.
   `flutter analyze` limpio, 5 tests verdes, `build web` ok.
   FALTA: probarla en teléfono (`fvm flutter run`; APK requiere Android SDK).
-  ⚠️ `reown_appkit` NO sirve aquí: su pubspec solo declara android/ios (web comentado), y el
-  equipo corre la app en Chrome. Por eso la app **no firma**: delega la firma a la web
-  (`/registro?n=&p=`) y detecta el resultado leyendo la cadena. No reintentar esa dependencia
-  sin resolver antes el APK.
+  **MÓVIL ES EL TARGET (decisión del fundador 08/09/2026)**: el Android SDK 36 ya está instalado
+  con licencias aceptadas y el **APK compila** (`flutter build apk --release`).
+  **`reown_appkit` SÍ está integrado** (`lib/wallet.dart`): en móvil el dueño conecta por
+  WalletConnect y **firma `registerMerchant` dentro de la app** (calldata codificada a mano,
+  selector `0xa6c8a384`; sin dependencia de ABI). En web AppKit no tiene implementación, así que
+  `kIsWeb` corta esa rama y queda el modo "pegar dirección" — **el build web sigue verde**.
+  ⚠️ El manifest de release NO traía `INTERNET` (Flutter solo lo inyecta en debug/profile): sin
+  esa línea el APK no puede leer la cadena y la app se ve rota. Ya está agregada, junto con las
+  `queries` de Android 11+ para que `url_launcher` abra navegador y wallet.
+  Project id de Reown para la app: `--dart-define=WALIKI_REOWN_ID=<id>` (no se commitea).
 - [ ] Paso 5 — Vercel + pago real desde teléfono · kit demo + video + ensayo del pitch
 
 **Criterios de "hecho"**: conectar en escritorio Y teléfono desde el QR · red forzada
