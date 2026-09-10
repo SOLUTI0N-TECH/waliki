@@ -381,8 +381,8 @@ class _CobrarScreenState extends State<CobrarScreen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [kSuccessTop, kBrand, kSuccessBottom],
-              stops: [0, 0.62, 1],
+              colors: [kSuccessTop, kSuccessMid, kSuccessBottom],
+              stops: [0, 0.55, 1],
             ),
           ),
           child: SafeArea(

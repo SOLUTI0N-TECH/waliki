@@ -145,7 +145,12 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
           style: wk(size: 11, weight: 700, color: kInkSoft, tracking: 0.05),
         ),
         const SizedBox(height: 8),
-        _field(_name, 'Como lo conocen tus clientes', mono: false, maxLength: 48),
+        _field(
+          _name,
+          'Como lo conocen tus clientes',
+          mono: false,
+          maxLength: 48,
+        ),
         const SizedBox(height: 18),
         Text(
           'DIRECCIÓN DE COBRO',

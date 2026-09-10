@@ -66,6 +66,9 @@ flutter:
 
   # Bundled (not fetched at runtime) so the demo works with no connectivity.
   # Both are variable fonts; weights are selected with FontVariation in ui.dart.
+  assets:
+    - assets/brand/
+
   fonts:
     - family: PlusJakartaSans
       fonts:

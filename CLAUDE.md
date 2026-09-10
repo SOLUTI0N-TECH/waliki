@@ -82,6 +82,10 @@ waliki/
                #   saleId bytes32; paidAmount evita doble pago; CEI; SafeERC20)
                # test/waliki.test.ts (7 tests) · scripts/deploy.ts → deployments/<red>.json (SÍ se commitea)
   web/         # /caja (cobro Bs→QR→verde) y /pay/:saleId (página de pago del cliente)
+  design/brand/ # LOGO OFICIAL (09/09/2026): logo-source.jpg + symbol.png y lockup.png
+               #   con fondo recortado. Paleta muestreada del archivo: violeta #6D2FF8,
+               #   indigo #3D32F1, azul #0072EF, cian #03BAE5, teal #33D0D4, navy #031740.
+               #   Se usa la version SIN el lema "Escanea - Paga - Verifica".
   design/      # mockups de la app (.dc.html + canvas.json) — fuente del canvas de Claude Design
   packages/    # (futuro) ABI + tipos compartidos
   docs/        # PASO-0.md (checklist de cuentas)

@@ -4,29 +4,34 @@
 :root {
   color-scheme: light dark;
 
-  --ink: light-dark(#0e1a15, #eef2ef);
-  --ink-soft: light-dark(#4a5a52, #a3aea8);
-  --ink-faint: light-dark(#77857d, #7d8781);
+  --ink: light-dark(#0b1220, #e9eef7);
+  --ink-soft: light-dark(#4b5b76, #9fb0c9);
+  --ink-faint: light-dark(#7b8aa3, #7d8ba3);
 
-  --surface: light-dark(#ffffff, #161a18);
-  --surface-2: light-dark(#f4f7f5, #1e2321);
-  --page: light-dark(#f2f5f3, #0f1211);
-  --line: light-dark(#e2e8e4, #2b322e);
+  --surface: light-dark(#ffffff, #141a26);
+  --surface-2: light-dark(#f2f6fc, #1b2333);
+  --page: light-dark(#f0f4fa, #0c111b);
+  --line: light-dark(#e0e7f1, #273043);
 
-  --brand: light-dark(#0a7a4a, #38c98a);
-  --brand-ink: light-dark(#075c37, #63dba6);
-  --brand-tint: light-dark(#e8f4ee, #14291f);
-  --brand-solid: #0a7a4a;
+  /* Sampled from the logo: the mark runs violet to cyan, wordmark navy. */
+  --brand: light-dark(#0072ef, #4da3ff);
+  --brand-ink: light-dark(#031740, #8cc4ff);
+  --brand-tint: light-dark(#e7f0fe, #14203a);
+  --brand-solid: #0072ef;
+  --brand-violet: #6d2ff8;
+  --brand-cyan: #03bae5;
+  /* The brand run, darkened at the far end so white type keeps its contrast */
+  --action: linear-gradient(90deg, #5b2cf5 0%, #1668e8 100%);
 
   --amber: light-dark(#a35a08, #f0b45f);
   --amber-tint: light-dark(#fbf1e4, #2c2113);
   --danger: light-dark(#c62a2a, #f08585);
   --danger-tint: light-dark(#fdeceb, #2c1614);
 
-  --shadow-sm: 0 1px 2px light-dark(rgb(14 26 21 / 0.05), rgb(0 0 0 / 0.3));
+  --shadow-sm: 0 1px 2px light-dark(rgb(11 18 32 / 0.06), rgb(0 0 0 / 0.3));
   --shadow-md:
-    0 1px 2px light-dark(rgb(14 26 21 / 0.04), rgb(0 0 0 / 0.25)),
-    0 8px 24px -8px light-dark(rgb(14 26 21 / 0.1), rgb(0 0 0 / 0.5));
+    0 1px 2px light-dark(rgb(11 18 32 / 0.05), rgb(0 0 0 / 0.25)),
+    0 8px 24px -8px light-dark(rgb(11 18 32 / 0.12), rgb(0 0 0 / 0.5));
 
   --r-sm: 10px;
   --r-md: 14px;
@@ -98,10 +103,9 @@ body {
 }
 
 .brand-mark {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--brand-solid);
+  height: 26px;
+  width: auto;
+  display: block;
 }
 
 main {
@@ -178,7 +182,7 @@ code,
   padding: 14px 18px;
   border: none;
   border-radius: var(--r-md);
-  background: var(--brand-solid);
+  background: var(--action);
   color: #fff;
   font-family: inherit;
   font-size: 15.5px;
@@ -186,7 +190,7 @@ code,
   letter-spacing: -0.01em;
   cursor: pointer;
   transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
-  box-shadow: 0 1px 2px rgb(10 122 74 / 0.3), 0 6px 16px -6px rgb(10 122 74 / 0.45);
+  box-shadow: 0 1px 2px rgb(61 50 241 / 0.3), 0 8px 20px -8px rgb(61 50 241 / 0.45);
 }
 
 .btn:hover:not(:disabled) {
@@ -195,7 +199,7 @@ code,
 
 .btn:active:not(:disabled) {
   transform: translateY(1px);
-  box-shadow: 0 1px 2px rgb(10 122 74 / 0.3);
+  box-shadow: 0 1px 2px rgb(61 50 241 / 0.3);
 }
 
 .btn:disabled {
@@ -451,10 +455,10 @@ code,
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 3px rgb(10 122 74 / 0.22);
+    box-shadow: 0 0 0 3px rgb(0 114 239 / 0.22);
   }
   50% {
-    box-shadow: 0 0 0 9px rgb(10 122 74 / 0.04);
+    box-shadow: 0 0 0 9px rgb(0 114 239 / 0.04);
   }
 }
 
@@ -466,7 +470,7 @@ code,
   gap: 11px;
   padding: 36px 22px 26px;
   border-radius: var(--r-lg);
-  background: linear-gradient(168deg, #12a862 0%, #0a7a4a 62%, #086a41 100%);
+  background: linear-gradient(168deg, #6d2ff8 0%, #1b4fe8 55%, #041b4d 100%);
   color: #fff;
   text-align: center;
   box-shadow: 0 18px 44px -18px rgb(8 106 65 / 0.65);

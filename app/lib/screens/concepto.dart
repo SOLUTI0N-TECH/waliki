@@ -54,7 +54,7 @@ class ModoFacilScreen extends StatelessWidget {
             shape: BoxShape.circle,
             color: Color(0xFFE7F4EC),
           ),
-          child: const Icon(Icons.fingerprint, size: 62, color: kGreen),
+          child: const Icon(Icons.fingerprint, size: 62, color: kBrand),
         ),
       ),
       const SizedBox(height: 14),
@@ -94,7 +94,7 @@ class ModoFacilScreen extends StatelessWidget {
       const Text(
         'COMPRAR SALDO',
         style: TextStyle(
-          color: kMuted,
+          color: kInkSoft,
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
@@ -111,7 +111,7 @@ class ModoFacilScreen extends StatelessWidget {
             ),
             const Text(
               'recibes ≈ 14,07 USDT · comisión de rampa 1,5%',
-              style: TextStyle(color: kMuted, fontSize: 12),
+              style: TextStyle(color: kInkSoft, fontSize: 12),
             ),
             const SizedBox(height: 12),
             Row(
@@ -138,7 +138,7 @@ class ModoFacilScreen extends StatelessWidget {
             const SizedBox(height: 10),
             const Text(
               'Operado por socios regulados — Waliki no procesa tu dinero fiat. KYC la primera vez.',
-              style: TextStyle(color: kMuted, fontSize: 11),
+              style: TextStyle(color: kInkSoft, fontSize: 11),
             ),
           ],
         ),
@@ -198,7 +198,7 @@ class ComercioScreen extends StatelessWidget {
       const Text(
         'PEDIDO #P-0456 · EN CAMINO',
         style: TextStyle(
-          color: kMuted,
+          color: kInkSoft,
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.5,
@@ -209,14 +209,14 @@ class ComercioScreen extends StatelessWidget {
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(color: kGreen, width: 1.6),
+          border: Border.all(color: kBrand, width: 1.6),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
             Row(
               children: const [
-                Icon(Icons.shield_outlined, size: 17, color: kGreen),
+                Icon(Icons.shield_outlined, size: 17, color: kBrand),
                 SizedBox(width: 7),
                 Text(
                   'Pago dividido on-chain',
@@ -227,7 +227,7 @@ class ComercioScreen extends StatelessWidget {
             const SizedBox(height: 4),
             const Text(
               'Retenido por el contrato — se libera al confirmar la entrega, en una sola transacción:',
-              style: TextStyle(color: kMuted, fontSize: 11),
+              style: TextStyle(color: kInkSoft, fontSize: 11),
             ),
             const SizedBox(height: 10),
             const _SplitRow('Comercio', 'Bs 35,00 · 2,50 USDT'),
@@ -246,7 +246,7 @@ class ComercioScreen extends StatelessWidget {
       const Center(
         child: Text(
           'Sin liquidaciones semanales: el repartidor cobra al confirmar.',
-          style: TextStyle(color: kMuted, fontSize: 11),
+          style: TextStyle(color: kInkSoft, fontSize: 11),
         ),
       ),
     ],
@@ -270,7 +270,7 @@ class PuntajeScreen extends StatelessWidget {
             const CircularProgressIndicator(
               value: 0.87,
               strokeWidth: 13,
-              color: kGreen,
+              color: kBrand,
               backgroundColor: kLine,
               strokeCap: StrokeCap.round,
             ),
@@ -282,7 +282,7 @@ class PuntajeScreen extends StatelessWidget {
                     '87',
                     style: TextStyle(fontSize: 44, fontWeight: FontWeight.w700),
                   ),
-                  Text('/100', style: TextStyle(color: kMuted, fontSize: 13)),
+                  Text('/100', style: TextStyle(color: kInkSoft, fontSize: 13)),
                 ],
               ),
             ),
@@ -295,7 +295,7 @@ class PuntajeScreen extends StatelessWidget {
       child: Text(
         'Sobre 1.240 ventas verificadas on-chain — auditable por cualquiera.',
         textAlign: TextAlign.center,
-        style: TextStyle(color: kMuted, fontSize: 12),
+        style: TextStyle(color: kInkSoft, fontSize: 12),
       ),
     ),
     const SizedBox(height: 14),
@@ -317,7 +317,7 @@ class PuntajeScreen extends StatelessWidget {
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: const Color(0xFFE7F4EC),
-        border: Border.all(color: kGreen, width: 1.4),
+        border: Border.all(color: kBrand, width: 1.4),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -325,14 +325,14 @@ class PuntajeScreen extends StatelessWidget {
         children: [
           const Text(
             'Adelanto de ventas disponible',
-            style: TextStyle(fontWeight: FontWeight.w700, color: kGreenDark),
+            style: TextStyle(fontWeight: FontWeight.w700, color: kBrandInk),
           ),
           const Text(
             'hasta Bs 3.500,00',
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w700,
-              color: kGreenDark,
+              color: kBrandInk,
             ),
           ),
           const SizedBox(height: 4),
@@ -359,7 +359,7 @@ class _Bullet extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      Icon(icon, size: 20, color: kGreen),
+      Icon(icon, size: 20, color: kBrand),
       const SizedBox(width: 10),
       Expanded(
         child: Text(
@@ -389,7 +389,7 @@ class _MethodBox extends StatelessWidget {
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(14),
       side: BorderSide(
-        color: selected ? kGreen : kLine,
+        color: selected ? kBrand : kLine,
         width: selected ? 2 : 1,
       ),
     ),
@@ -400,7 +400,7 @@ class _MethodBox extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            Icon(icon, color: selected ? kGreen : kMuted, size: 26),
+            Icon(icon, color: selected ? kBrand : kInkSoft, size: 26),
             const SizedBox(height: 6),
             Text(
               label,
@@ -439,7 +439,7 @@ class _Product extends StatelessWidget {
               color: tint,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, size: 34, color: kGreenDark),
+            child: Icon(icon, size: 34, color: kBrandInk),
           ),
         ),
         const SizedBox(height: 7),
@@ -467,7 +467,7 @@ class _Product extends StatelessWidget {
                 height: 30,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: kGreen,
+                  color: kBrand,
                 ),
                 child: const Icon(Icons.add, size: 17, color: Colors.white),
               ),
@@ -528,7 +528,7 @@ class _Factor extends StatelessWidget {
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: kMuted,
+              color: kInkSoft,
             ),
           ),
         ],
@@ -539,7 +539,7 @@ class _Factor extends StatelessWidget {
         child: LinearProgressIndicator(
           value: value,
           minHeight: 7,
-          color: kGreen,
+          color: kBrand,
           backgroundColor: const Color(0xFFECEFEC),
         ),
       ),

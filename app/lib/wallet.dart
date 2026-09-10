@@ -53,7 +53,7 @@ class Wallet {
         name: 'Waliki',
         description: 'Cobros en USDT sin custodia',
         url: 'https://waliki-gules.vercel.app',
-        icons: ['https://waliki-gules.vercel.app/favicon.svg'],
+        icons: ['https://waliki-gules.vercel.app/favicon.png'],
         redirect: Redirect(native: 'waliki://', universal: null),
       ),
       optionalNamespaces: {

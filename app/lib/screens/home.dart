@@ -312,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           _ActionCard(
                             icon: Icons.account_balance_wallet_rounded,
-                            iconColor: kViolet,
+                            iconColor: kConcept,
                             title: 'Saldo y billetera',
                             subtitle: 'Compra saldo con QR o tarjeta',
                             tag: 'Fase 2',
@@ -324,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           _ActionCard(
                             icon: Icons.storefront_rounded,
-                            iconColor: kViolet,
+                            iconColor: kConcept,
                             title: 'Tienda',
                             subtitle: 'Tus productos, pagados igual',
                             tag: 'Fase 3',
@@ -339,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 12),
                       _ActionCard(
                         icon: Icons.trending_up_rounded,
-                        iconColor: kViolet,
+                        iconColor: kConcept,
                         title: 'Puntaje comercial',
                         subtitle: 'Tu historial de ventas te abre la puerta a un adelanto',
                         tag: 'Pronto',
@@ -433,7 +433,8 @@ class _ActionCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (tag != null) WChip(tag!, bg: kVioletTint, fg: kViolet),
+                    if (tag != null)
+                      WChip(tag!, bg: kConceptTint, fg: kConcept),
                   ],
                 )
               : Column(
@@ -444,7 +445,7 @@ class _ActionCard extends StatelessWidget {
                       children: [
                         Icon(icon, color: iconColor, size: 23),
                         if (tag != null)
-                          WChip(tag!, bg: kVioletTint, fg: kViolet),
+                          WChip(tag!, bg: kConceptTint, fg: kConcept),
                       ],
                     ),
                     const Spacer(),

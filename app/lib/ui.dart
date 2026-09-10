@@ -1,38 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// ── Design tokens ────────────────────────────────────────────────────────
-// Same palette and type scale as the web app, so the product reads as one.
-const kBrand = Color(0xFF0A7A4A);
-const kBrandInk = Color(0xFF075C37);
-const kBrandTint = Color(0xFFE8F4EE);
-const kSuccessTop = Color(0xFF12A862);
-const kSuccessBottom = Color(0xFF086A41);
-const kInk = Color(0xFF0E1A15);
-const kInkSoft = Color(0xFF4A5A52);
+// ── Design tokens ──────────────────────────────────────────────
+// Sampled straight from the logo (design/brand/logo-source.jpg): the mark runs
+// violet to cyan and the wordmark is navy. Same values as the web app, so the
+// product reads as one.
+const kBrandViolet = Color(0xFF6D2FF8);
+const kBrandIndigo = Color(0xFF3D32F1);
+const kBrand = Color(0xFF0072EF);
+const kBrandCyan = Color(0xFF03BAE5);
+const kBrandTeal = Color(0xFF33D0D4);
+const kBrandInk = Color(0xFF031740);
+const kBrandTint = Color(0xFFE7F0FE);
+const kCyanTint = Color(0xFFE0F7FA);
+
+/// The mark's own gradient, for the surfaces that carry the brand.
+const kBrandGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [kBrandViolet, kBrand, kBrandCyan],
+);
+
+/// Same run, darkened at the far end so white text keeps its contrast. Used
+/// where type sits on top of it: the primary button and the paid screen.
+const kActionGradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [Color(0xFF5B2CF5), Color(0xFF1668E8)],
+);
+
+// Neutrals carry a blue cast now, to sit under the navy rather than fight it.
+const kInk = Color(0xFF0B1220);
+const kInkSoft = Color(0xFF4B5B76);
 const kSurface = Color(0xFFFFFFFF);
-const kSurface2 = Color(0xFFF4F7F5);
-const kPage = Color(0xFFF2F5F3);
-const kLine = Color(0xFFE2E8E4);
-const kAmber = Color(0xFFA35A08);
-const kAmberTint = Color(0xFFFBF1E4);
-const kViolet = Color(0xFF6D28D9);
-const kVioletTint = Color(0xFFF1EBFC);
+const kSurface2 = Color(0xFFF2F6FC);
+const kPage = Color(0xFFF0F4FA);
+const kLine = Color(0xFFE0E7F1);
+const kDisabled = Color(0xFFDCE3EE);
+const kDisabledInk = Color(0xFF97A3B8);
+
+// The paid screen: the brand run, anchored in navy so every white label on it
+// clears 4.5:1.
+const kSuccessTop = kBrandViolet;
+const kSuccessMid = Color(0xFF1B4FE8);
+const kSuccessBottom = Color(0xFF041B4D);
+
+const kAmber = Color(0xFF9A5B00);
+const kAmberTint = Color(0xFFFDF2E3);
+// Violet belongs to the brand now, so mockup markers moved to a quiet slate.
+const kConcept = Color(0xFF5B6B8C);
+const kConceptTint = Color(0xFFEEF1F7);
 // Loading placeholders: a shade below the page so the shapes read as absent
 // content, plus the highlight the shimmer sweeps across them.
-const kSkeleton = Color(0xFFE3EAE6);
-const kSkeletonGlow = Color(0xFFF5F8F6);
+const kSkeleton = Color(0xFFE2E9F4);
+const kSkeletonGlow = Color(0xFFF6F9FD);
 const kDanger = Color(0xFFC62A2A);
 const kDangerTint = Color(0xFFFDECEB);
-
-// Legacy aliases kept so existing screens keep compiling
-const kGreen = kBrand;
-const kGreenBright = kSuccessTop;
-const kGreenDark = kBrandInk;
-const kMuted = kInkSoft;
-const kBg = kPage;
-const kAmberBg = kAmberTint;
-const kRed = kDanger;
 
 /// Variable-font text style. Weight rides the `wght` axis so every weight
 /// comes from one bundled file.
@@ -100,7 +123,7 @@ class ConceptChip extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(8, 4, 10, 4),
     margin: const EdgeInsets.only(right: 8),
     decoration: BoxDecoration(
-      color: kVioletTint,
+      color: kConceptTint,
       borderRadius: BorderRadius.circular(999),
     ),
     child: Row(
@@ -111,11 +134,11 @@ class ConceptChip extends StatelessWidget {
           height: 6,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: kViolet,
+            color: kConcept,
           ),
         ),
         const SizedBox(width: 6),
-        Text(label, style: wk(size: 11.5, weight: 700, color: kViolet)),
+        Text(label, style: wk(size: 11.5, weight: 700, color: kConcept)),
       ],
     ),
   );
@@ -131,11 +154,16 @@ class WalikiBar extends StatelessWidget implements PreferredSizeWidget {
   final bool back;
   final List<Widget> actions;
 
+  /// Screens that already show the logo as their hero pass false, so the brand
+  /// is not stated twice on one screen.
+  final bool mark;
+
   const WalikiBar({
     super.key,
     this.title,
     this.back = false,
     this.actions = const [],
+    this.mark = true,
   });
 
   static const double barHeight = 54;
@@ -178,18 +206,15 @@ class WalikiBar extends StatelessWidget implements PreferredSizeWidget {
                 )
               else
                 const SizedBox(width: 18),
-              if (title == null) ...[
-                Container(
-                  width: 9,
-                  height: 9,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: kBrand,
-                  ),
+              if (title == null && mark) ...[
+                Image.asset(
+                  'assets/brand/symbol.png',
+                  height: 26,
+                  filterQuality: FilterQuality.medium,
                 ),
-                const SizedBox(width: 7),
+                const SizedBox(width: 9),
                 Text(
-                  'waliki',
+                  'Waliki',
                   style: wk(
                     size: 19,
                     weight: 800,
@@ -197,7 +222,7 @@ class WalikiBar extends StatelessWidget implements PreferredSizeWidget {
                     tracking: -0.03,
                   ),
                 ),
-              ] else
+              ] else if (title != null)
                 Text(title!, style: wk(size: 17, weight: 700, tracking: -0.02)),
               const Spacer(),
               ...actions,
@@ -287,39 +312,59 @@ class WChip extends StatelessWidget {
 class PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
-  final Color color;
+
+  /// A solid colour overrides the brand gradient — used where the button sits
+  /// on top of the gradient itself and has to invert.
+  final Color? color;
   final Color fg;
   const PrimaryButton(
     this.label, {
     super.key,
     this.onTap,
-    this.color = kBrand,
+    this.color,
     this.fg = Colors.white,
   });
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: double.infinity,
-    height: 54,
-    child: FilledButton(
-      style: FilledButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: fg,
-        disabledBackgroundColor: const Color(0xFFDBE2DD),
-        disabledForegroundColor: const Color(0xFF8B978F),
-        elevation: onTap == null ? 0 : 2,
-        shadowColor: color.withValues(alpha: 0.45),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-      onPressed: onTap,
-      child: Text(
-        label,
-        style: wk(
-          size: 15.5,
-          weight: 700,
-          color: onTap == null ? const Color(0xFF8B978F) : fg,
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final radius = BorderRadius.circular(14);
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: enabled && color == null ? kActionGradient : null,
+          color: !enabled ? kDisabled : color,
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                    color: (color ?? kBrandIndigo).withValues(alpha: 0.3),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ]
+              : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: onTap,
+            child: Center(
+              child: Text(
+                label,
+                style: wk(
+                  size: 15.5,
+                  weight: 700,
+                  color: enabled ? fg : kDisabledInk,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

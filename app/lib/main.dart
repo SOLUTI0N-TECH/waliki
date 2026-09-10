@@ -31,7 +31,7 @@ class WalikiApp extends StatelessWidget {
     // Phone-first app: on wide screens (web/desktop) render inside a
     // centered 430px frame; on phones this changes nothing.
     builder: (context, child) => ColoredBox(
-      color: const Color(0xFFE7EBE7),
+      color: const Color(0xFFE4E9F4),
       child: Center(
         child: Container(
           constraints: const BoxConstraints(maxWidth: 430),
@@ -133,22 +133,18 @@ class _PinGateState extends State<PinGate> {
   Widget build(BuildContext context) {
     final len = (widget.session.pin ?? '1234').length;
     return Scaffold(
-      appBar: const WalikiBar(),
+      appBar: const WalikiBar(mark: false),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
               const SizedBox(height: 40),
-              Text(
-                'waliki',
-                style: wk(
-                  size: 40,
-                  weight: 800,
-                  color: kBrandInk,
-                  tracking: -0.035,
-                ),
+              Image.asset(
+                'assets/brand/lockup.png',
+                width: 184,
+                filterQuality: FilterQuality.medium,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Text(
                 'La caja que verifica en la blockchain',
                 style: wk(size: 13.5, weight: 500, color: kInkSoft),

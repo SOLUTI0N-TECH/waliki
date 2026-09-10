@@ -38,24 +38,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget build(BuildContext context) {
     final session = widget.session;
     return Scaffold(
-      appBar: const WalikiBar(),
+      appBar: const WalikiBar(mark: false),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'waliki',
-                textAlign: TextAlign.center,
-                style: wk(
-                  size: 44,
-                  weight: 800,
-                  color: kBrandInk,
-                  tracking: -0.035,
+              Center(
+                child: Image.asset(
+                  'assets/brand/lockup.png',
+                  width: 208,
+                  filterQuality: FilterQuality.medium,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               Text(
                 'Cobra en USDT, sin custodios',
                 textAlign: TextAlign.center,

@@ -9,8 +9,8 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <Link className="brand" to="/">
-          <span className="brand-mark" />
-          waliki
+          <img className="brand-mark" src="/waliki-mark.png" alt="" />
+          Waliki
         </Link>
       </header>
       <main>
