@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../chain.dart';
 import '../session.dart';
@@ -81,16 +80,6 @@ class _VincularCajaScreenState extends State<VincularCajaScreen> {
                         tracking: -0.02,
                         tabular: true,
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: kLine),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: QrImageView(data: _code, size: 150),
                     ),
                   ],
                 ),
