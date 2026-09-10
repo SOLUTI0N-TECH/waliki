@@ -100,7 +100,7 @@ waliki/
 - [ ] Paso 4b — app Flutter (`app/` con FVM 3.47): IMPLEMENTADA con onboarding completo —
   **welcome con selección de rol** → dueño (conecta billetera por dirección → **mis comercios**
   → **crear comercio** delegando la firma a la web + polling de la cadena → **vincular cajero**
-  con código `W<id>-<pin>`) / cajero (código → PIN → caja). Además: cobrar (Bs→QR→verde por
+  con código `W<id><pin>`) / cajero (código → PIN → caja). Además: cobrar (Bs→QR→verde por
   polling `paidAmount`), historial on-chain y **reportes** (períodos, KPIs, barras por día,
   export CSV al portapapeles). Sesión persistida con `shared_preferences`.
   `flutter analyze` limpio, 5 tests verdes, `build web` ok.

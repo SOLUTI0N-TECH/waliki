@@ -78,14 +78,22 @@ class Session {
     await save();
   }
 
-  /// Register-linking code the owner hands to a cashier: `W<merchantId>-<pin>`.
-  static String buildCajaCode(int merchantId, String pin) =>
-      'W$merchantId-$pin';
+  /// Register-linking code the owner hands to a cashier: `W<merchantId><pin>`.
+  ///
+  /// No separator: a dash means leaving the letters keyboard on a phone, and
+  /// the code is short enough to read out as one run. The PIN is always four
+  /// digits, so the shop id is simply whatever comes before them.
+  static String buildCajaCode(int merchantId, String pin) => 'W$merchantId$pin';
 
-  /// Parses "W1-4821" (case-insensitive, spaces tolerated). Null when invalid.
+  /// Parses "W14821". The `W`, its case and any separator are optional, so a
+  /// cashier can type just the digits — or an older code with a dash.
   static ({int merchantId, String pin})? parseCajaCode(String raw) {
-    final m = RegExp(r'^\s*[wW]?\s*(\d+)\s*[-: ]\s*(\d{4,8})\s*$')
+    // Separated form first: codes handed out before this change, and anything
+    // typed with a dash, colon or space out of habit.
+    var m = RegExp(r'^\s*[wW]?\s*(\d+)\s*[-: ]\s*(\d{4,8})\s*$')
         .firstMatch(raw);
+    // Run together: the PIN is the last four digits, the shop id the rest.
+    m ??= RegExp(r'^\s*[wW]?\s*(\d+)(\d{4})\s*$').firstMatch(raw);
     if (m == null) return null;
     final id = int.tryParse(m.group(1)!);
     if (id == null || id <= 0) return null;

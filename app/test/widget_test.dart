@@ -34,15 +34,25 @@ void main() {
   group('código de caja', () {
     test('builds and parses a round trip', () {
       final code = Session.buildCajaCode(7, '4821');
-      expect(code, 'W7-4821');
+      expect(code, 'W74821');
       final parsed = Session.parseCajaCode(code);
       expect(parsed?.merchantId, 7);
       expect(parsed?.pin, '4821');
     });
 
-    test('tolerates lowercase, spaces and a colon', () {
+    test('splits a run-together code on the last four digits', () {
+      // Two-digit shop: the id must not eat into the PIN.
+      final parsed = Session.parseCajaCode('W129090');
+      expect(parsed?.merchantId, 12);
+      expect(parsed?.pin, '9090');
+      // The W is optional, so the cashier can stay on the number keyboard.
+      expect(Session.parseCajaCode('74821')?.merchantId, 7);
+    });
+
+    test('still reads codes handed out with a separator', () {
       expect(Session.parseCajaCode(' w12 : 9090 ')?.merchantId, 12);
       expect(Session.parseCajaCode('12-9090')?.pin, '9090');
+      expect(Session.parseCajaCode('W7-4821')?.pin, '4821');
     });
 
     test('rejects nonsense', () {

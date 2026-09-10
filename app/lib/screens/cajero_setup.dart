@@ -30,7 +30,7 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
   Future<void> _vincular() async {
     final parsed = Session.parseCajaCode(_ctrl.text);
     if (parsed == null) {
-      setState(() => _error = 'Código inválido. Debe verse así: W1-4821');
+      setState(() => _error = 'Código inválido. Debe verse así: W14821');
       return;
     }
     setState(() {
@@ -105,7 +105,7 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Es el código que te dio el dueño del comercio. Se ve así: W1-4821',
+                'Es el código que te dio el dueño del comercio. Se ve así: W14821',
                 textAlign: TextAlign.center,
                 style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
               ),
@@ -123,7 +123,7 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
                 onChanged: (_) => setState(() => _error = null),
                 onSubmitted: (_) => _vincular(),
                 decoration: InputDecoration(
-                  hintText: 'W1-4821',
+                  hintText: 'W14821',
                   hintStyle: wk(
                     size: 30,
                     weight: 800,
