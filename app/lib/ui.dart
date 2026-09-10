@@ -18,6 +18,10 @@ const kAmber = Color(0xFFA35A08);
 const kAmberTint = Color(0xFFFBF1E4);
 const kViolet = Color(0xFF6D28D9);
 const kVioletTint = Color(0xFFF1EBFC);
+// Loading placeholders: a shade below the page so the shapes read as absent
+// content, plus the highlight the shimmer sweeps across them.
+const kSkeleton = Color(0xFFE3EAE6);
+const kSkeletonGlow = Color(0xFFF5F8F6);
 const kDanger = Color(0xFFC62A2A);
 const kDangerTint = Color(0xFFFDECEB);
 

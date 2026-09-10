@@ -59,8 +59,8 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-            builder: (_) =>
-                HomeScreen(session: s, merchantId: parsed.merchantId)),
+          builder: (_) => HomeScreen(session: s, merchantId: parsed.merchantId),
+        ),
         (route) => false,
       );
     } catch (e) {
@@ -87,15 +87,22 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
                   width: 76,
                   height: 76,
                   decoration: const BoxDecoration(
-                      shape: BoxShape.circle, color: kBrandTint),
-                  child: const Icon(Icons.point_of_sale_rounded,
-                      size: 38, color: kBrand),
+                    shape: BoxShape.circle,
+                    color: kBrandTint,
+                  ),
+                  child: const Icon(
+                    Icons.point_of_sale_rounded,
+                    size: 38,
+                    color: kBrand,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Ingresa el código de caja',
-                  textAlign: TextAlign.center,
-                  style: wk(size: 21, weight: 800, tracking: -0.03)),
+              Text(
+                'Ingresa el código de caja',
+                textAlign: TextAlign.center,
+                style: wk(size: 21, weight: 800, tracking: -0.03),
+              ),
               const SizedBox(height: 8),
               Text(
                 'Es el código que te dio el dueño del comercio. Se ve así: W1-4821',
@@ -107,16 +114,22 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
                 controller: _ctrl,
                 textAlign: TextAlign.center,
                 textCapitalization: TextCapitalization.characters,
-                style: wk(size: 30, weight: 800, tracking: -0.02, tabular: true),
+                style: wk(
+                  size: 30,
+                  weight: 800,
+                  tracking: -0.02,
+                  tabular: true,
+                ),
                 onChanged: (_) => setState(() => _error = null),
                 onSubmitted: (_) => _vincular(),
                 decoration: InputDecoration(
                   hintText: 'W1-4821',
                   hintStyle: wk(
-                      size: 30,
-                      weight: 800,
-                      color: const Color(0xFFC6CEC8),
-                      tabular: true),
+                    size: 30,
+                    weight: 800,
+                    color: const Color(0xFFC6CEC8),
+                    tabular: true,
+                  ),
                   filled: true,
                   fillColor: kSurface,
                   contentPadding: const EdgeInsets.symmetric(vertical: 16),
@@ -142,28 +155,39 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
                       });
                     }
                   },
-                  icon: const Icon(Icons.content_paste_rounded,
-                      size: 16, color: kInkSoft),
-                  label: Text('Pegar',
-                      style: wk(size: 13, weight: 600, color: kInkSoft)),
+                  icon: const Icon(
+                    Icons.content_paste_rounded,
+                    size: 16,
+                    color: kInkSoft,
+                  ),
+                  label: Text(
+                    'Pegar',
+                    style: wk(size: 13, weight: 600, color: kInkSoft),
+                  ),
                 ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
                   decoration: BoxDecoration(
                     color: kDangerTint,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Text(_error!,
-                      style: wk(size: 13, weight: 600, color: kDanger)),
+                  child: Text(
+                    _error!,
+                    style: wk(size: 13, weight: 600, color: kDanger),
+                  ),
                 ),
               ],
               const SizedBox(height: 16),
-              PrimaryButton(_busy ? 'Verificando…' : 'Vincular caja',
-                  onTap: _busy ? null : _vincular),
+              PrimaryButton(
+                _busy ? 'Verificando…' : 'Vincular caja',
+                onTap: _busy ? null : _vincular,
+              ),
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -174,7 +198,11 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
                       'Como cajero cobras y verificas, pero nunca tocas los fondos '
                       'ni las llaves del dueño.',
                       style: wk(
-                          size: 12, weight: 500, color: kInkSoft, height: 1.45),
+                        size: 12,
+                        weight: 500,
+                        color: kInkSoft,
+                        height: 1.45,
+                      ),
                     ),
                   ),
                 ],

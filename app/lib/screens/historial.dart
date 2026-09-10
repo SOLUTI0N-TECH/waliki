@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../chain.dart';
 import '../ui.dart';
+import '../skeletons.dart';
 
 class HistorialScreen extends StatefulWidget {
   final int merchantId;
@@ -67,7 +68,7 @@ class _HistorialScreenState extends State<HistorialScreen> {
                     );
                   }
                   if (!snap.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const HistorialSkeleton();
                   }
                   final list = snap.data!.reversed.toList();
                   if (list.isEmpty) {

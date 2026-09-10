@@ -14,8 +14,11 @@ import '../ui.dart';
 class VincularCajaScreen extends StatefulWidget {
   final Session session;
   final Merchant merchant;
-  const VincularCajaScreen(
-      {super.key, required this.session, required this.merchant});
+  const VincularCajaScreen({
+    super.key,
+    required this.session,
+    required this.merchant,
+  });
 
   @override
   State<VincularCajaScreen> createState() => _VincularCajaScreenState();
@@ -37,9 +40,11 @@ class _VincularCajaScreenState extends State<VincularCajaScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(widget.merchant.displayName,
-                  textAlign: TextAlign.center,
-                  style: wk(size: 19, weight: 800, tracking: -0.03)),
+              Text(
+                widget.merchant.displayName,
+                textAlign: TextAlign.center,
+                style: wk(size: 19, weight: 800, tracking: -0.03),
+              ),
               const SizedBox(height: 6),
               Text(
                 'Dale este código a tu cajero. Con él, su teléfono se convierte en '
@@ -57,20 +62,26 @@ class _VincularCajaScreenState extends State<VincularCajaScreen> {
                 ),
                 child: Column(
                   children: [
-                    Text('CÓDIGO DE CAJA',
-                        style: wk(
-                            size: 11,
-                            weight: 700,
-                            color: kInkSoft,
-                            tracking: 0.05)),
+                    Text(
+                      'CÓDIGO DE CAJA',
+                      style: wk(
+                        size: 11,
+                        weight: 700,
+                        color: kInkSoft,
+                        tracking: 0.05,
+                      ),
+                    ),
                     const SizedBox(height: 10),
-                    Text(_code,
-                        style: wk(
-                            size: 40,
-                            weight: 800,
-                            color: kBrandInk,
-                            tracking: -0.02,
-                            tabular: true)),
+                    Text(
+                      _code,
+                      style: wk(
+                        size: 40,
+                        weight: 800,
+                        color: kBrandInk,
+                        tracking: -0.02,
+                        tabular: true,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -97,18 +108,19 @@ class _VincularCajaScreenState extends State<VincularCajaScreen> {
                           setState(() => _copied = true);
                         },
                         icon: Icon(
-                            _copied
-                                ? Icons.check_rounded
-                                : Icons.copy_rounded,
-                            size: 17),
-                        label: Text(_copied ? 'Copiado' : 'Copiar código',
-                            style:
-                                wk(size: 14, weight: 700, color: kBrandInk)),
+                          _copied ? Icons.check_rounded : Icons.copy_rounded,
+                          size: 17,
+                        ),
+                        label: Text(
+                          _copied ? 'Copiado' : 'Copiar código',
+                          style: wk(size: 14, weight: 700, color: kBrandInk),
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: kBrandInk,
                           side: const BorderSide(color: kLine, width: 1.5),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                       ),
                     ),
@@ -119,17 +131,22 @@ class _VincularCajaScreenState extends State<VincularCajaScreen> {
                     width: 52,
                     child: OutlinedButton(
                       onPressed: () => setState(() {
-                        _pin = (Random.secure().nextInt(9000) + 1000).toString();
+                        _pin = (Random.secure().nextInt(9000) + 1000)
+                            .toString();
                         _copied = false;
                       }),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: kLine, width: 1.5),
                         padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
-                      child: const Icon(Icons.autorenew_rounded,
-                          size: 19, color: kInkSoft),
+                      child: const Icon(
+                        Icons.autorenew_rounded,
+                        size: 19,
+                        color: kInkSoft,
+                      ),
                     ),
                   ),
                 ],
@@ -139,13 +156,20 @@ class _VincularCajaScreenState extends State<VincularCajaScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Cómo lo usa el cajero',
-                        style: wk(size: 14, weight: 700)),
+                    Text(
+                      'Cómo lo usa el cajero',
+                      style: wk(size: 14, weight: 700),
+                    ),
                     const SizedBox(height: 10),
-                    _paso('1', 'Abre Waliki en su teléfono y elige "Soy cajero".'),
+                    _paso(
+                      '1',
+                      'Abre Waliki en su teléfono y elige "Soy cajero".',
+                    ),
                     _paso('2', 'Escribe el código $_code.'),
-                    _paso('3',
-                        'Listo: cobra con el PIN $_pin cada vez que abra la app.'),
+                    _paso(
+                      '3',
+                      'Listo: cobra con el PIN $_pin cada vez que abra la app.',
+                    ),
                   ],
                 ),
               ),
@@ -159,7 +183,11 @@ class _VincularCajaScreenState extends State<VincularCajaScreen> {
                       'Aunque alguien más vea el código, solo podría generar cobros '
                       'que pagan a TU dirección. Nadie puede mover tus fondos.',
                       style: wk(
-                          size: 12, weight: 500, color: kInkSoft, height: 1.45),
+                        size: 12,
+                        weight: 500,
+                        color: kInkSoft,
+                        height: 1.45,
+                      ),
                     ),
                   ),
                 ],
@@ -172,25 +200,28 @@ class _VincularCajaScreenState extends State<VincularCajaScreen> {
   }
 
   Widget _paso(String n, String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 20,
-              height: 20,
-              alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                  shape: BoxShape.circle, color: kBrandTint),
-              child: Text(n, style: wk(size: 11, weight: 700, color: kBrandInk)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(text,
-                  style: wk(
-                      size: 12.5, weight: 500, color: kInkSoft, height: 1.45)),
-            ),
-          ],
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: kBrandTint,
+          ),
+          child: Text(n, style: wk(size: 11, weight: 700, color: kBrandInk)),
         ),
-      );
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: wk(size: 12.5, weight: 500, color: kInkSoft, height: 1.45),
+          ),
+        ),
+      ],
+    ),
+  );
 }

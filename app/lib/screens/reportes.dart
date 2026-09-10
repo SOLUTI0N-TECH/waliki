@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../chain.dart';
 import '../session.dart';
 import '../ui.dart';
+import '../skeletons.dart';
 
 enum _Period { hoy, semana, mes, todo }
 
@@ -15,8 +16,18 @@ const _periodLabel = {
 };
 
 const _meses = [
-  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
 ];
 
 String _dayKey(DateTime d) =>
@@ -32,8 +43,11 @@ String _hora(DateTime d) =>
 class ReportesScreen extends StatefulWidget {
   final Session session;
   final int merchantId;
-  const ReportesScreen(
-      {super.key, required this.session, required this.merchantId});
+  const ReportesScreen({
+    super.key,
+    required this.session,
+    required this.merchantId,
+  });
 
   @override
   State<ReportesScreen> createState() => _ReportesScreenState();
@@ -80,27 +94,34 @@ class _ReportesScreenState extends State<ReportesScreen> {
 
   Future<void> _exportCsv(List<Payment> rows) async {
     final buf = StringBuffer(
-        'fecha,hora,venta,monto_usdt,monto_bs,pagador,bloque,transaccion\n');
+      'fecha,hora,venta,monto_usdt,monto_bs,pagador,bloque,transaccion\n',
+    );
     for (final p in rows.reversed) {
       final d = p.date;
       final usdt = p.amount.toDouble() / 1e6;
-      buf.writeln([
-        d == null ? '' : _dayKey(d),
-        d == null ? '' : _hora(d),
-        p.saleId,
-        usdt.toStringAsFixed(2),
-        (usdt * _rate).toStringAsFixed(2),
-        p.payer,
-        p.block.toString(),
-        p.txHash,
-      ].join(','));
+      buf.writeln(
+        [
+          d == null ? '' : _dayKey(d),
+          d == null ? '' : _hora(d),
+          p.saleId,
+          usdt.toStringAsFixed(2),
+          (usdt * _rate).toStringAsFixed(2),
+          p.payer,
+          p.block.toString(),
+          p.txHash,
+        ].join(','),
+      );
     }
     await Clipboard.setData(ClipboardData(text: buf.toString()));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('${rows.length} ventas copiadas en formato CSV — '
-          'pégalas en Excel o Google Sheets'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${rows.length} ventas copiadas en formato CSV — '
+          'pégalas en Excel o Google Sheets',
+        ),
+      ),
+    );
   }
 
   @override
@@ -125,14 +146,16 @@ class _ReportesScreenState extends State<ReportesScreen> {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(28),
-                  child: Text('Sin conexión con la cadena\n${snap.error}',
-                      textAlign: TextAlign.center,
-                      style: wk(size: 13, weight: 500, color: kInkSoft)),
+                  child: Text(
+                    'Sin conexión con la cadena\n${snap.error}',
+                    textAlign: TextAlign.center,
+                    style: wk(size: 13, weight: 500, color: kInkSoft),
+                  ),
                 ),
               );
             }
             if (!snap.hasData) {
-              return const Center(child: CircularProgressIndicator());
+              return const ReportesSkeleton();
             }
             final all = snap.data!;
             final rows = _filter(all);
@@ -151,8 +174,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   'Cada cifra sale de los eventos del contrato en Base Sepolia. '
                   'Nadie —ni Waliki— puede editarlas.',
                   textAlign: TextAlign.center,
-                  style:
-                      wk(size: 11.5, weight: 500, color: kInkSoft, height: 1.5),
+                  style: wk(
+                    size: 11.5,
+                    weight: 500,
+                    color: kInkSoft,
+                    height: 1.5,
+                  ),
                 ),
               ],
             );
@@ -163,35 +190,37 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Widget _filters() => Row(
-        children: [
-          for (final p in _Period.values) ...[
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _period = p),
-                child: Container(
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: _period == p ? kBrand : kSurface,
-                    border: Border.all(color: _period == p ? kBrand : kLine),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(_periodLabel[p]!,
-                      style: wk(
-                          size: 12.5,
-                          weight: 700,
-                          color: _period == p ? Colors.white : kInkSoft)),
+    children: [
+      for (final p in _Period.values) ...[
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _period = p),
+            child: Container(
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _period == p ? kBrand : kSurface,
+                border: Border.all(color: _period == p ? kBrand : kLine),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                _periodLabel[p]!,
+                style: wk(
+                  size: 12.5,
+                  weight: 700,
+                  color: _period == p ? Colors.white : kInkSoft,
                 ),
               ),
             ),
-            if (p != _Period.todo) const SizedBox(width: 8),
-          ],
-        ],
-      );
+          ),
+        ),
+        if (p != _Period.todo) const SizedBox(width: 8),
+      ],
+    ],
+  );
 
   Widget _kpis(List<Payment> rows) {
-    final totalUnits =
-        rows.fold<BigInt>(BigInt.zero, (a, p) => a + p.amount);
+    final totalUnits = rows.fold<BigInt>(BigInt.zero, (a, p) => a + p.amount);
     final total = totalUnits.toDouble() / 1e6;
     final avg = rows.isEmpty ? 0.0 : total / rows.length;
     final payers = rows.map((p) => p.payer.toLowerCase()).toSet().length;
@@ -202,30 +231,52 @@ class _ReportesScreenState extends State<ReportesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('COBRADO · ${_periodLabel[_period]!.toUpperCase()}',
-                  style: wk(
-                      size: 11, weight: 700, color: kInkSoft, tracking: 0.05)),
+              Text(
+                'COBRADO · ${_periodLabel[_period]!.toUpperCase()}',
+                style: wk(
+                  size: 11,
+                  weight: 700,
+                  color: kInkSoft,
+                  tracking: 0.05,
+                ),
+              ),
               const SizedBox(height: 7),
               Text('${fmtNum(total)} tUSDT', style: wkNum(size: 34)),
               const SizedBox(height: 3),
-              Text('≈ Bs ${fmtNum(total * _rate)}  ·  al cambio de ${_rate.toStringAsFixed(2)}',
-                  style: wk(size: 12.5, weight: 500, color: kInkSoft)),
+              Text(
+                '≈ Bs ${fmtNum(total * _rate)}  ·  al cambio de ${_rate.toStringAsFixed(2)}',
+                style: wk(size: 12.5, weight: 500, color: kInkSoft),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _tile('Ventas', '${rows.length}', Icons.receipt_long_rounded)),
+            Expanded(
+              child: _tile(
+                'Ventas',
+                '${rows.length}',
+                Icons.receipt_long_rounded,
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
-                child: _tile('Ticket promedio', fmtNum(avg),
-                    Icons.trending_up_rounded)),
+              child: _tile(
+                'Ticket promedio',
+                fmtNum(avg),
+                Icons.trending_up_rounded,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
-        _tile('Pagadores distintos', '$payers', Icons.groups_rounded,
-            note: 'Un historial sano tiene muchos pagadores, no uno solo.'),
+        _tile(
+          'Pagadores distintos',
+          '$payers',
+          Icons.groups_rounded,
+          note: 'Un historial sano tiene muchos pagadores, no uno solo.',
+        ),
       ],
     );
   }
@@ -241,8 +292,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
                 Icon(icon, size: 17, color: kBrand),
                 const SizedBox(width: 7),
                 Expanded(
-                  child: Text(label,
-                      style: wk(size: 12, weight: 600, color: kInkSoft)),
+                  child: Text(
+                    label,
+                    style: wk(size: 12, weight: 600, color: kInkSoft),
+                  ),
                 ),
               ],
             ),
@@ -250,9 +303,10 @@ class _ReportesScreenState extends State<ReportesScreen> {
             Text(value, style: wkNum(size: 24)),
             if (note != null) ...[
               const SizedBox(height: 5),
-              Text(note,
-                  style: wk(
-                      size: 11, weight: 500, color: kInkSoft, height: 1.4)),
+              Text(
+                note,
+                style: wk(size: 11, weight: 500, color: kInkSoft, height: 1.4),
+              ),
             ],
           ],
         ),
@@ -266,8 +320,11 @@ class _ReportesScreenState extends State<ReportesScreen> {
     final buckets = <String, double>{};
     final labels = <DateTime>[];
     for (var i = days - 1; i >= 0; i--) {
-      final d = DateTime(today.year, today.month, today.day)
-          .subtract(Duration(days: i));
+      final d = DateTime(
+        today.year,
+        today.month,
+        today.day,
+      ).subtract(Duration(days: i));
       labels.add(d);
       buckets[_dayKey(d)] = 0;
     }
@@ -286,14 +343,16 @@ class _ReportesScreenState extends State<ReportesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Ventas por día · últimos 14 días',
-              style: wk(size: 14, weight: 700, tracking: -0.02)),
+          Text(
+            'Ventas por día · últimos 14 días',
+            style: wk(size: 14, weight: 700, tracking: -0.02),
+          ),
           const SizedBox(height: 4),
           Text(
             _selectedBar == null
                 ? (maxV == 0
-                    ? 'Sin ventas en este período'
-                    : 'Toca una barra para ver el detalle')
+                      ? 'Sin ventas en este período'
+                      : 'Toca una barra para ver el detalle')
                 : '${_fecha(labels[_selectedBar!])} · ${fmtNum(values[_selectedBar!])} tUSDT',
             style: wk(size: 12, weight: 600, color: kInkSoft),
           ),
@@ -309,7 +368,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () => setState(
-                          () => _selectedBar = _selectedBar == i ? null : i),
+                        () => _selectedBar = _selectedBar == i ? null : i,
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -322,7 +382,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
                                   ? kLine
                                   : (_selectedBar == i ? kBrandInk : kBrand),
                               borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(4)),
+                                top: Radius.circular(4),
+                              ),
                             ),
                           ),
                         ],
@@ -332,15 +393,23 @@ class _ReportesScreenState extends State<ReportesScreen> {
               ],
             ),
           ),
-          Container(height: 1, color: kLine, margin: const EdgeInsets.only(top: 4)),
+          Container(
+            height: 1,
+            color: kLine,
+            margin: const EdgeInsets.only(top: 4),
+          ),
           const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(_fecha(labels.first),
-                  style: wk(size: 10.5, weight: 500, color: kInkSoft)),
-              Text(_fecha(labels[days ~/ 2]),
-                  style: wk(size: 10.5, weight: 500, color: kInkSoft)),
+              Text(
+                _fecha(labels.first),
+                style: wk(size: 10.5, weight: 500, color: kInkSoft),
+              ),
+              Text(
+                _fecha(labels[days ~/ 2]),
+                style: wk(size: 10.5, weight: 500, color: kInkSoft),
+              ),
               Text('hoy', style: wk(size: 10.5, weight: 600, color: kInkSoft)),
             ],
           ),
@@ -350,40 +419,42 @@ class _ReportesScreenState extends State<ReportesScreen> {
   }
 
   Widget _exportCard(List<Payment> rows) => WCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                const Icon(Icons.table_chart_rounded, size: 18, color: kBrand),
-                const SizedBox(width: 8),
-                Text('Exportar contabilidad',
-                    style: wk(size: 14, weight: 700)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Copia las ${rows.length} ventas del período en formato CSV, con su '
-              'fecha, monto en Bs y USDT, pagador y número de transacción.',
-              style: wk(size: 12.5, weight: 500, color: kInkSoft, height: 1.5),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 46,
-              child: OutlinedButton.icon(
-                onPressed: rows.isEmpty ? null : () => _exportCsv(rows),
-                icon: const Icon(Icons.copy_rounded, size: 17),
-                label: Text('Copiar CSV',
-                    style: wk(size: 14, weight: 700, color: kBrandInk)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: kBrandInk,
-                  side: const BorderSide(color: kBrand, width: 1.5),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-              ),
-            ),
+            const Icon(Icons.table_chart_rounded, size: 18, color: kBrand),
+            const SizedBox(width: 8),
+            Text('Exportar contabilidad', style: wk(size: 14, weight: 700)),
           ],
         ),
-      );
+        const SizedBox(height: 6),
+        Text(
+          'Copia las ${rows.length} ventas del período en formato CSV, con su '
+          'fecha, monto en Bs y USDT, pagador y número de transacción.',
+          style: wk(size: 12.5, weight: 500, color: kInkSoft, height: 1.5),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 46,
+          child: OutlinedButton.icon(
+            onPressed: rows.isEmpty ? null : () => _exportCsv(rows),
+            icon: const Icon(Icons.copy_rounded, size: 17),
+            label: Text(
+              'Copiar CSV',
+              style: wk(size: 14, weight: 700, color: kBrandInk),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: kBrandInk,
+              side: const BorderSide(color: kBrand, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../chain.dart';
 import '../session.dart';
 import '../ui.dart';
+import '../skeletons.dart';
 import '../wallet.dart';
 import 'crear_comercio.dart';
 import 'home.dart';
@@ -125,7 +126,7 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
                     );
                   }
                   if (!snap.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const MisComerciosSkeleton();
                   }
                   final list = snap.data!;
                   if (list.isEmpty) {

@@ -45,17 +45,22 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('waliki',
-                  textAlign: TextAlign.center,
-                  style: wk(
-                      size: 44,
-                      weight: 800,
-                      color: kBrandInk,
-                      tracking: -0.035)),
+              Text(
+                'waliki',
+                textAlign: TextAlign.center,
+                style: wk(
+                  size: 44,
+                  weight: 800,
+                  color: kBrandInk,
+                  tracking: -0.035,
+                ),
+              ),
               const SizedBox(height: 6),
-              Text('Cobra en USDT, sin custodios',
-                  textAlign: TextAlign.center,
-                  style: wk(size: 15, weight: 600, color: kInkSoft)),
+              Text(
+                'Cobra en USDT, sin custodios',
+                textAlign: TextAlign.center,
+                style: wk(size: 15, weight: 600, color: kInkSoft),
+              ),
               const SizedBox(height: 20),
               Text(
                 'El pago viaja directo de la billetera del cliente a la del comercio. '
@@ -64,10 +69,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
               ),
               const SizedBox(height: 28),
-              Text('¿CÓMO VAS A USAR WALIKI?',
-                  textAlign: TextAlign.center,
-                  style: wk(
-                      size: 11, weight: 700, color: kInkSoft, tracking: 0.05)),
+              Text(
+                '¿CÓMO VAS A USAR WALIKI?',
+                textAlign: TextAlign.center,
+                style: wk(
+                  size: 11,
+                  weight: 700,
+                  color: kInkSoft,
+                  tracking: 0.05,
+                ),
+              ),
               const SizedBox(height: 12),
               _RoleCard(
                 icon: Icons.storefront_rounded,
@@ -75,8 +86,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 subtitle:
                     'Registro mi comercio, vinculo cajeros y veo mis reportes.',
                 note: 'Conectas tu billetera',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => ConectarScreen(session: session))),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ConectarScreen(session: session),
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               _RoleCard(
@@ -85,8 +99,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 subtitle:
                     'Cobro y verifico pagos con el código que me dio el dueño.',
                 note: 'Sin billetera, solo un PIN',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => CajeroSetupScreen(session: session))),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CajeroSetupScreen(session: session),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
               Row(
@@ -154,14 +171,20 @@ class _RoleCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: wk(size: 17, weight: 700, tracking: -0.02)),
+                    Text(
+                      title,
+                      style: wk(size: 17, weight: 700, tracking: -0.02),
+                    ),
                     const SizedBox(height: 3),
-                    Text(subtitle,
-                        style: wk(
-                            size: 12.5,
-                            weight: 500,
-                            color: kInkSoft,
-                            height: 1.4)),
+                    Text(
+                      subtitle,
+                      style: wk(
+                        size: 12.5,
+                        weight: 500,
+                        color: kInkSoft,
+                        height: 1.4,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     WChip(note, bg: kSurface2, fg: kInkSoft),
                   ],

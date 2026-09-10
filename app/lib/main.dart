@@ -13,35 +13,35 @@ class WalikiApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Waliki',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          fontFamily: 'PlusJakartaSans',
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: kBrand,
-            primary: kBrand,
-            surface: kSurface,
+    title: 'Waliki',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(
+      useMaterial3: true,
+      fontFamily: 'PlusJakartaSans',
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: kBrand,
+        primary: kBrand,
+        surface: kSurface,
+      ),
+      scaffoldBackgroundColor: kPage,
+      splashFactory: InkSparkle.splashFactory,
+    ),
+    // Phone-first app: on wide screens (web/desktop) render inside a
+    // centered 430px frame; on phones this changes nothing.
+    builder: (context, child) => ColoredBox(
+      color: const Color(0xFFE7EBE7),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 430),
+          decoration: const BoxDecoration(
+            boxShadow: [BoxShadow(color: Color(0x1F000000), blurRadius: 28)],
           ),
-          scaffoldBackgroundColor: kPage,
-          splashFactory: InkSparkle.splashFactory,
+          child: child,
         ),
-        // Phone-first app: on wide screens (web/desktop) render inside a
-        // centered 430px frame; on phones this changes nothing.
-        builder: (context, child) => ColoredBox(
-          color: const Color(0xFFE7EBE7),
-          child: Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 430),
-              decoration: const BoxDecoration(boxShadow: [
-                BoxShadow(color: Color(0x1F000000), blurRadius: 28),
-              ]),
-              child: child,
-            ),
-          ),
-        ),
-        home: const Bootstrap(),
-      );
+      ),
+    ),
+    home: const Bootstrap(),
+  );
 }
 
 /// Decides where the app opens: welcome on a fresh install, the owner panel
@@ -114,7 +114,9 @@ class _PinGateState extends State<PinGate> {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => HomeScreen(
-                  session: widget.session, merchantId: widget.merchantId),
+                session: widget.session,
+                merchantId: widget.merchantId,
+              ),
             ),
           );
         } else {
@@ -135,21 +137,33 @@ class _PinGateState extends State<PinGate> {
           child: Column(
             children: [
               const SizedBox(height: 40),
-              Text('waliki',
-                  style: wk(
-                      size: 40, weight: 800, color: kBrandInk, tracking: -0.035)),
+              Text(
+                'waliki',
+                style: wk(
+                  size: 40,
+                  weight: 800,
+                  color: kBrandInk,
+                  tracking: -0.035,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('La caja que verifica en la blockchain',
-                  style: wk(size: 13.5, weight: 500, color: kInkSoft)),
+              Text(
+                'La caja que verifica en la blockchain',
+                style: wk(size: 13.5, weight: 500, color: kInkSoft),
+              ),
               const SizedBox(height: 24),
               WChip('Caja del comercio #${widget.merchantId}'),
               const SizedBox(height: 20),
               Text(
-                  _error
-                      ? 'PIN incorrecto — intenta de nuevo'
-                      : 'Ingresa tu PIN de cajero',
-                  style: wk(
-                      size: 15, weight: 700, color: _error ? kDanger : kInk)),
+                _error
+                    ? 'PIN incorrecto — intenta de nuevo'
+                    : 'Ingresa tu PIN de cajero',
+                style: wk(
+                  size: 15,
+                  weight: 700,
+                  color: _error ? kDanger : kInk,
+                ),
+              ),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -164,10 +178,11 @@ class _PinGateState extends State<PinGate> {
                         shape: BoxShape.circle,
                         color: i < _pin.length ? kBrand : Colors.transparent,
                         border: Border.all(
-                            color: i < _pin.length
-                                ? kBrand
-                                : const Color(0xFFC6CEC8),
-                            width: 2),
+                          color: i < _pin.length
+                              ? kBrand
+                              : const Color(0xFFC6CEC8),
+                          width: 2,
+                        ),
                       ),
                     ),
                 ],
@@ -180,7 +195,12 @@ class _PinGateState extends State<PinGate> {
                 child: Text(
                   'El cajero cobra y verifica — nunca toca los fondos ni las llaves.',
                   textAlign: TextAlign.center,
-                  style: wk(size: 12.5, weight: 500, color: kInkSoft, height: 1.45),
+                  style: wk(
+                    size: 12.5,
+                    weight: 500,
+                    color: kInkSoft,
+                    height: 1.45,
+                  ),
                 ),
               ),
               const SizedBox(height: 22),
@@ -223,10 +243,15 @@ class _Keypad extends StatelessWidget {
                       onTap: () => onKey(k),
                       child: Center(
                         child: k == '<'
-                            ? const Icon(Icons.backspace_outlined,
-                                color: kInkSoft, size: 22)
-                            : Text(k,
-                                style: wk(size: 25, weight: 600, tabular: true)),
+                            ? const Icon(
+                                Icons.backspace_outlined,
+                                color: kInkSoft,
+                                size: 22,
+                              )
+                            : Text(
+                                k,
+                                style: wk(size: 25, weight: 600, tabular: true),
+                              ),
                       ),
                     ),
                   ),

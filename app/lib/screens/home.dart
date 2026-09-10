@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../chain.dart';
+import '../config.dart';
 import '../session.dart';
 import '../ui.dart';
+import '../skeletons.dart';
 import '../wallet.dart';
 import 'cobrar.dart';
 import 'concepto.dart';
@@ -103,230 +105,248 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: FutureBuilder<Merchant>(
+          future: _merchant,
+          builder: (context, mSnap) {
+            // The shop name is one eth_call: show the page's own shape until
+            // it lands, then let the slower log scan fill the card below.
+            if (!mSnap.hasData && !mSnap.hasError) return const HomeSkeleton();
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: FutureBuilder<Merchant>(
-                      future: _merchant,
-                      builder: (context, snap) => Text(
-                        snap.data?.displayName ?? 'Cargando comercio…',
-                        style: wk(size: 24, weight: 800, tracking: -0.03),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  WChip(
-                    esDuenio ? 'Dueño' : 'Cajero',
-                    bg: kSurface2,
-                    fg: kInkSoft,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Verificado en Base Sepolia',
-                style: wk(size: 12.5, weight: 500, color: kInkSoft),
-              ),
-              const SizedBox(height: 16),
-              WCard(
-                child: FutureBuilder<List<Payment>>(
-                  future: _payments,
-                  builder: (context, snap) {
-                    final list = snap.data;
-                    final total =
-                        list?.fold<BigInt>(
-                          BigInt.zero,
-                          (a, p) => a + p.amount,
-                        ) ??
-                        BigInt.zero;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'VENTAS VERIFICADAS',
-                          style: wk(
-                            size: 11,
-                            weight: 700,
-                            color: kInkSoft,
-                            tracking: 0.04,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: FutureBuilder<Merchant>(
+                          future: _merchant,
+                          builder: (context, snap) => Text(
+                            snap.data?.displayName ?? 'Cargando comercio…',
+                            style: wk(size: 24, weight: 800, tracking: -0.03),
                           ),
                         ),
-                        const SizedBox(height: 7),
-                        Text(
-                          list == null ? '…' : '${fmtUsdt(total)} tUSDT',
-                          style: wkNum(size: 33),
-                        ),
-                        const SizedBox(height: 5),
-                        Row(
+                      ),
+                      const SizedBox(width: 10),
+                      WChip(
+                        esDuenio ? 'Dueño' : 'Cajero',
+                        bg: kSurface2,
+                        fg: kInkSoft,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Verificado en Base Sepolia',
+                    style: wk(size: 12.5, weight: 500, color: kInkSoft),
+                  ),
+                  const SizedBox(height: 16),
+                  WCard(
+                    child: FutureBuilder<List<Payment>>(
+                      future: _payments,
+                      builder: (context, snap) {
+                        final list = snap.data;
+                        final total =
+                            list?.fold<BigInt>(
+                              BigInt.zero,
+                              (a, p) => a + p.amount,
+                            ) ??
+                            BigInt.zero;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.verified_rounded,
-                              size: 15,
-                              color: kBrand,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                list == null
-                                    ? 'consultando la cadena…'
-                                    : '${list.length} pagos on-chain, auditables por cualquiera',
-                                style: wk(
-                                  size: 12.5,
-                                  weight: 500,
-                                  color: kInkSoft,
-                                ),
+                            Text(
+                              'VENTAS VERIFICADAS',
+                              style: wk(
+                                size: 11,
+                                weight: 700,
+                                color: kInkSoft,
+                                tracking: 0.04,
                               ),
                             ),
+                            const SizedBox(height: 7),
+                            if (list == null)
+                              const Shimmer(
+                                child: SkLine(widthFactor: 0.62, height: 30),
+                              )
+                            else
+                              Text(
+                                '${fmtUsdt(total)} tUSDT',
+                                style: wkNum(size: 33),
+                              ),
+                            const SizedBox(height: 5),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.verified_rounded,
+                                  size: 15,
+                                  color: kBrand,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    list == null
+                                        ? 'consultando la cadena…'
+                                        : '${list.length} pagos on-chain, auditables por cualquiera',
+                                    style: wk(
+                                      size: 12.5,
+                                      weight: 500,
+                                      color: kInkSoft,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  PrimaryButton(
+                    'Cobrar',
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CobrarScreen(
+                            session: widget.session,
+                            merchantId: widget.merchantId,
+                          ),
+                        ),
+                      );
+                      setState(_reload);
+                    },
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    'TU COMERCIO',
+                    style: wk(
+                      size: 11,
+                      weight: 700,
+                      color: kInkSoft,
+                      tracking: 0.04,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // A grid (not a Row): _ActionCard uses a Spacer, which needs a
+                  // bounded height. Inside a scroll view a Row leaves the height
+                  // unbounded and layout throws.
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.32,
+                    children: [
+                      _ActionCard(
+                        icon: Icons.receipt_long_rounded,
+                        iconColor: kBrand,
+                        title: 'Historial',
+                        subtitle: 'Cada venta, verificada en la cadena',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                HistorialScreen(merchantId: widget.merchantId),
+                          ),
+                        ),
+                      ),
+                      _ActionCard(
+                        icon: Icons.insights_rounded,
+                        iconColor: kBrand,
+                        title: 'Reportes',
+                        subtitle: 'Totales, ticket promedio y CSV',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ReportesScreen(
+                              session: widget.session,
+                              merchantId: widget.merchantId,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (WalikiConfig.showVision) ...[
+                    const SizedBox(height: 22),
+                    Text(
+                      'WALIKI COMPLETO',
+                      style: wk(
+                        size: 11,
+                        weight: 700,
+                        color: kInkSoft,
+                        tracking: 0.04,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      childAspectRatio: 1.32,
+                      children: [
+                        _ActionCard(
+                          icon: Icons.account_balance_wallet_rounded,
+                          iconColor: kViolet,
+                          title: 'Saldo y billetera',
+                          subtitle: 'Compra saldo con QR o tarjeta',
+                          tag: 'Fase 2',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ModoFacilScreen(),
+                            ),
+                          ),
+                        ),
+                        _ActionCard(
+                          icon: Icons.storefront_rounded,
+                          iconColor: kViolet,
+                          title: 'Tienda',
+                          subtitle: 'Tus productos, pagados igual',
+                          tag: 'Fase 3',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ComercioScreen(),
+                            ),
+                          ),
                         ),
                       ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 14),
-              PrimaryButton(
-                'Cobrar',
-                onTap: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => CobrarScreen(
-                        session: widget.session,
-                        merchantId: widget.merchantId,
-                      ),
                     ),
-                  );
-                  setState(_reload);
-                },
-              ),
-              const SizedBox(height: 22),
-              Text(
-                'TU COMERCIO',
-                style: wk(
-                  size: 11,
-                  weight: 700,
-                  color: kInkSoft,
-                  tracking: 0.04,
-                ),
-              ),
-              const SizedBox(height: 10),
-              // A grid (not a Row): _ActionCard uses a Spacer, which needs a
-              // bounded height. Inside a scroll view a Row leaves the height
-              // unbounded and layout throws.
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.32,
-                children: [
-                  _ActionCard(
-                    icon: Icons.receipt_long_rounded,
-                    iconColor: kBrand,
-                    title: 'Historial',
-                    subtitle: 'Cada venta, verificada en la cadena',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            HistorialScreen(merchantId: widget.merchantId),
-                      ),
-                    ),
-                  ),
-                  _ActionCard(
-                    icon: Icons.insights_rounded,
-                    iconColor: kBrand,
-                    title: 'Reportes',
-                    subtitle: 'Totales, ticket promedio y CSV',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ReportesScreen(
-                          session: widget.session,
-                          merchantId: widget.merchantId,
+                    const SizedBox(height: 12),
+                    _ActionCard(
+                      icon: Icons.trending_up_rounded,
+                      iconColor: kViolet,
+                      title: 'Puntaje comercial',
+                      subtitle: 'Tu historial de ventas te abre la puerta a un adelanto',
+                      tag: 'Pronto',
+                      wide: true,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PuntajeScreen(),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              Text(
-                'WALIKI COMPLETO',
-                style: wk(
-                  size: 11,
-                  weight: 700,
-                  color: kInkSoft,
-                  tracking: 0.04,
-                ),
-              ),
-              const SizedBox(height: 10),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.32,
-                children: [
-                  _ActionCard(
-                    icon: Icons.account_balance_wallet_rounded,
-                    iconColor: kViolet,
-                    title: 'Saldo y billetera',
-                    subtitle: 'Compra saldo con QR o tarjeta',
-                    tag: 'Fase 2',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ModoFacilScreen(),
+                  ],
+                  const SizedBox(height: 18),
+                  Center(
+                    child: Text(
+                      'Los fondos llegan directo a la wallet del dueño —\nWaliki nunca los toca.',
+                      textAlign: TextAlign.center,
+                      style: wk(
+                        size: 12,
+                        weight: 500,
+                        color: kInkSoft,
+                        height: 1.5,
                       ),
                     ),
                   ),
-                  _ActionCard(
-                    icon: Icons.storefront_rounded,
-                    iconColor: kViolet,
-                    title: 'Tienda',
-                    subtitle: 'Tus productos, pagados igual',
-                    tag: 'Fase 3',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ComercioScreen()),
-                    ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-              _ActionCard(
-                icon: Icons.trending_up_rounded,
-                iconColor: kViolet,
-                title: 'Puntaje comercial',
-                subtitle:
-                    'Tu historial de ventas te abre la puerta a un adelanto',
-                tag: 'Pronto',
-                wide: true,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const PuntajeScreen()),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Center(
-                child: Text(
-                  'Los fondos llegan directo a la wallet del dueño —\nWaliki nunca los toca.',
-                  textAlign: TextAlign.center,
-                  style: wk(
-                    size: 12,
-                    weight: 500,
-                    color: kInkSoft,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

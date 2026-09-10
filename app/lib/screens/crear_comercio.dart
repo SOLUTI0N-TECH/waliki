@@ -25,8 +25,9 @@ class CrearComercioScreen extends StatefulWidget {
 
 class _CrearComercioScreenState extends State<CrearComercioScreen> {
   final _name = TextEditingController();
-  late final TextEditingController _payout =
-      TextEditingController(text: widget.session.ownerAddress ?? '');
+  late final TextEditingController _payout = TextEditingController(
+    text: widget.session.ownerAddress ?? '',
+  );
 
   _Step _step = _Step.form;
   Set<int> _before = {};
@@ -82,10 +83,7 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
       }
     } else {
       final uri = Uri.parse('${WalikiConfig.payBaseUrl}/registro').replace(
-        queryParameters: {
-          'n': _name.text.trim(),
-          'p': _payout.text.trim(),
-        },
+        queryParameters: {'n': _name.text.trim(), 'p': _payout.text.trim()},
       );
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -131,113 +129,127 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
   }
 
   Widget _buildForm() => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Tu comercio queda registrado en la blockchain con una sola firma. '
-              'La dirección de cobro queda candada a tu billetera: ningún empleado '
-              'puede desviar los pagos.',
-              style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
-            ),
-            const SizedBox(height: 20),
-            Text('NOMBRE DEL COMERCIO',
-                style:
-                    wk(size: 11, weight: 700, color: kInkSoft, tracking: 0.05)),
-            const SizedBox(height: 8),
-            _field(_name, 'Ej. Café Natalia', mono: false, maxLength: 48),
-            const SizedBox(height: 18),
-            Text('DIRECCIÓN DE COBRO',
-                style:
-                    wk(size: 11, weight: 700, color: kInkSoft, tracking: 0.05)),
-            const SizedBox(height: 8),
-            _field(_payout, '0x…', mono: true),
-            const SizedBox(height: 6),
-            Text('Por defecto, tu propia billetera. Aquí llega cada venta.',
-                style: wk(size: 12, weight: 500, color: kInkSoft)),
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                decoration: BoxDecoration(
-                  color: kDangerTint,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Text(_error!,
-                    style: wk(size: 13, weight: 600, color: kDanger)),
-              ),
-            ],
-            const SizedBox(height: 22),
-            PrimaryButton('Firmar en mi billetera',
-                onTap: _valid ? _firmar : null),
-            const SizedBox(height: 10),
-            Text(
-              Wallet.instance.isConnected
-                  ? 'Tu billetera te pedirá aprobar la transacción. Al confirmarse, '
-                      'la app detecta tu comercio sola.'
-                  : 'Se abrirá Waliki web con estos datos ya cargados. Firmas ahí con '
-                      'tu billetera y vuelves: la app detecta tu comercio sola.',
-              textAlign: TextAlign.center,
-              style: wk(size: 12, weight: 500, color: kInkSoft, height: 1.5),
-            ),
-          ],
+    padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Tu comercio queda registrado en la blockchain con una sola firma. '
+          'La dirección de cobro queda candada a tu billetera: ningún empleado '
+          'puede desviar los pagos.',
+          style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
         ),
-      );
+        const SizedBox(height: 20),
+        Text(
+          'NOMBRE DEL COMERCIO',
+          style: wk(size: 11, weight: 700, color: kInkSoft, tracking: 0.05),
+        ),
+        const SizedBox(height: 8),
+        _field(_name, 'Ej. Café Natalia', mono: false, maxLength: 48),
+        const SizedBox(height: 18),
+        Text(
+          'DIRECCIÓN DE COBRO',
+          style: wk(size: 11, weight: 700, color: kInkSoft, tracking: 0.05),
+        ),
+        const SizedBox(height: 8),
+        _field(_payout, '0x…', mono: true),
+        const SizedBox(height: 6),
+        Text(
+          'Por defecto, tu propia billetera. Aquí llega cada venta.',
+          style: wk(size: 12, weight: 500, color: kInkSoft),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: kDangerTint,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              _error!,
+              style: wk(size: 13, weight: 600, color: kDanger),
+            ),
+          ),
+        ],
+        const SizedBox(height: 22),
+        PrimaryButton('Firmar en mi billetera', onTap: _valid ? _firmar : null),
+        const SizedBox(height: 10),
+        Text(
+          Wallet.instance.isConnected
+              ? 'Tu billetera te pedirá aprobar la transacción. Al confirmarse, '
+                    'la app detecta tu comercio sola.'
+              : 'Se abrirá Waliki web con estos datos ya cargados. Firmas ahí con '
+                    'tu billetera y vuelves: la app detecta tu comercio sola.',
+          textAlign: TextAlign.center,
+          style: wk(size: 12, weight: 500, color: kInkSoft, height: 1.5),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildWaiting() => Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(
-              width: 52,
-              height: 52,
-              child: CircularProgressIndicator(strokeWidth: 3.5, color: kBrand),
-            ),
-            const SizedBox(height: 24),
-            Text('Esperando tu firma…',
-                style: wk(size: 20, weight: 800, tracking: -0.03)),
-            const SizedBox(height: 10),
-            Text(
-              _inApp
-                  ? 'Aprueba la transacción en tu billetera. Cuando entre en un '
-                      'bloque, la app lo detecta sola.'
-                  : 'Completa el registro en la ventana que se abrió. Cuando la '
-                      'transacción entre en un bloque, la app lo detecta sola.',
-              textAlign: TextAlign.center,
-              style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
-            ),
-            const SizedBox(height: 18),
-            WChip('consultando la cadena · ${_seconds}s',
-                bg: kSurface2, fg: kInkSoft),
-            const SizedBox(height: 28),
-            SizedBox(
-              height: 46,
-              child: OutlinedButton(
-                onPressed: _buscar,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: kBrand, width: 1.5),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                child: Text('Ya firmé — buscar ahora',
-                    style: wk(size: 14, weight: 700, color: kBrandInk)),
+    padding: const EdgeInsets.all(28),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const SizedBox(
+          width: 52,
+          height: 52,
+          child: CircularProgressIndicator(strokeWidth: 3.5, color: kBrand),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Esperando tu firma…',
+          style: wk(size: 20, weight: 800, tracking: -0.03),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _inApp
+              ? 'Aprueba la transacción en tu billetera. Cuando entre en un '
+                    'bloque, la app lo detecta sola.'
+              : 'Completa el registro en la ventana que se abrió. Cuando la '
+                    'transacción entre en un bloque, la app lo detecta sola.',
+          textAlign: TextAlign.center,
+          style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
+        ),
+        const SizedBox(height: 18),
+        WChip(
+          'consultando la cadena · ${_seconds}s',
+          bg: kSurface2,
+          fg: kInkSoft,
+        ),
+        const SizedBox(height: 28),
+        SizedBox(
+          height: 46,
+          child: OutlinedButton(
+            onPressed: _buscar,
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: kBrand, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () {
-                _poll?.cancel();
-                setState(() => _step = _Step.form);
-              },
-              child: Text('Cancelar',
-                  style: wk(size: 14, weight: 600, color: kInkSoft)),
+            child: Text(
+              'Ya firmé — buscar ahora',
+              style: wk(size: 14, weight: 700, color: kBrandInk),
             ),
-          ],
+          ),
         ),
-      );
+        const SizedBox(height: 10),
+        TextButton(
+          onPressed: () {
+            _poll?.cancel();
+            setState(() => _step = _Step.form);
+          },
+          child: Text(
+            'Cancelar',
+            style: wk(size: 14, weight: 600, color: kInkSoft),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildDone() {
     final m = _created!;
@@ -249,18 +261,24 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
           Container(
             width: 92,
             height: 92,
-            decoration:
-                const BoxDecoration(shape: BoxShape.circle, color: kBrandTint),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: kBrandTint,
+            ),
             child: const Icon(Icons.check_rounded, size: 52, color: kBrand),
           ),
           const SizedBox(height: 20),
-          Text('¡Comercio registrado!',
-              textAlign: TextAlign.center,
-              style: wk(size: 24, weight: 800, tracking: -0.03)),
+          Text(
+            '¡Comercio registrado!',
+            textAlign: TextAlign.center,
+            style: wk(size: 24, weight: 800, tracking: -0.03),
+          ),
           const SizedBox(height: 8),
-          Text(m.displayName,
-              textAlign: TextAlign.center,
-              style: wk(size: 17, weight: 700, color: kBrandInk)),
+          Text(
+            m.displayName,
+            textAlign: TextAlign.center,
+            style: wk(size: 17, weight: 700, color: kBrandInk),
+          ),
           const SizedBox(height: 16),
           WCard(
             child: Column(
@@ -274,49 +292,59 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
             ),
           ),
           const Spacer(),
-          PrimaryButton('Abrir la caja',
-              onTap: () => Navigator.of(context).pop(m.id)),
+          PrimaryButton(
+            'Abrir la caja',
+            onTap: () => Navigator.of(context).pop(m.id),
+          ),
         ],
       ),
     );
   }
 
   Widget _row(String label, String value) => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: wk(size: 12.5, weight: 500, color: kInkSoft)),
-          Flexible(
-            child: Text(value,
-                overflow: TextOverflow.ellipsis,
-                style: wk(size: 13, weight: 600)),
-          ),
-        ],
-      );
-
-  Widget _field(TextEditingController c, String hint,
-          {bool mono = false, int? maxLength}) =>
-      TextField(
-        controller: c,
-        maxLength: maxLength,
-        style: wk(size: mono ? 13 : 15, weight: mono ? 500 : 600, mono: mono),
-        onChanged: (_) => setState(() {}),
-        decoration: InputDecoration(
-          hintText: hint,
-          counterText: '',
-          hintStyle:
-              wk(size: mono ? 13 : 15, weight: 500, color: kInkSoft, mono: mono),
-          filled: true,
-          fillColor: kSurface,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: kLine, width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: kBrand, width: 1.5),
-          ),
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(label, style: wk(size: 12.5, weight: 500, color: kInkSoft)),
+      Flexible(
+        child: Text(
+          value,
+          overflow: TextOverflow.ellipsis,
+          style: wk(size: 13, weight: 600),
         ),
-      );
+      ),
+    ],
+  );
+
+  Widget _field(
+    TextEditingController c,
+    String hint, {
+    bool mono = false,
+    int? maxLength,
+  }) => TextField(
+    controller: c,
+    maxLength: maxLength,
+    style: wk(size: mono ? 13 : 15, weight: mono ? 500 : 600, mono: mono),
+    onChanged: (_) => setState(() {}),
+    decoration: InputDecoration(
+      hintText: hint,
+      counterText: '',
+      hintStyle: wk(
+        size: mono ? 13 : 15,
+        weight: 500,
+        color: kInkSoft,
+        mono: mono,
+      ),
+      filled: true,
+      fillColor: kSurface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: kLine, width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: kBrand, width: 1.5),
+      ),
+    ),
+  );
 }

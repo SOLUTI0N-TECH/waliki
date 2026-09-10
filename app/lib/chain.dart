@@ -21,7 +21,10 @@ class Rpc {
   }
 
   static Future<dynamic> _post(
-      String url, String method, List<dynamic> params) async {
+    String url,
+    String method,
+    List<dynamic> params,
+  ) async {
     final res = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
@@ -115,13 +118,13 @@ class Payment {
   });
 
   Payment withTime(int? t) => Payment(
-        saleId: saleId,
-        payer: payer,
-        txHash: txHash,
-        amount: amount,
-        block: block,
-        timestamp: t,
-      );
+    saleId: saleId,
+    payer: payer,
+    txHash: txHash,
+    amount: amount,
+    block: block,
+    timestamp: t,
+  );
 
   DateTime? get date => timestamp == null
       ? null
@@ -178,20 +181,25 @@ class Chain {
   static const int _logRange = 9900;
 
   static Future<List<dynamic>> _getLogs(
-      List<dynamic> topics, BigInt from, BigInt to) async {
+    List<dynamic> topics,
+    BigInt from,
+    BigInt to,
+  ) async {
     return await Rpc.call('eth_getLogs', [
       {
         'address': WalikiConfig.router,
         'fromBlock': '0x${from.toRadixString(16)}',
         'toBlock': '0x${to.toRadixString(16)}',
         'topics': topics,
-      }
+      },
     ]) as List<dynamic>;
   }
 
   /// Scans in windows of <=9,900 blocks to respect the public RPC limit.
-  static Future<List<dynamic>> _scanLogs(List<dynamic> topics,
-      {bool recentOnly = false}) async {
+  static Future<List<dynamic>> _scanLogs(
+    List<dynamic> topics, {
+    bool recentOnly = false,
+  }) async {
     final latest = await blockNumber();
     final range = BigInt.from(_logRange);
     final windows = <List<BigInt>>[];
@@ -222,8 +230,10 @@ class Chain {
   }
 
   /// All PaymentReceived logs for a merchant (optionally a single sale).
-  static Future<List<Payment>> payments(
-      {int? merchantId, String? saleId}) async {
+  static Future<List<Payment>> payments({
+    int? merchantId,
+    String? saleId,
+  }) async {
     final id = merchantId ?? WalikiConfig.merchantId;
     final topics = <dynamic>[
       paymentReceivedTopic,
@@ -238,8 +248,10 @@ class Chain {
           payer: _addr(_wordFromHex(l['topics'][3] as String)),
           amount: _uint((l['data'] as String).substring(2, 66)),
           txHash: l['transactionHash'] as String,
-          block:
-              BigInt.parse((l['blockNumber'] as String).substring(2), radix: 16),
+          block: BigInt.parse(
+            (l['blockNumber'] as String).substring(2),
+            radix: 16,
+          ),
         ),
     ];
   }
@@ -279,12 +291,14 @@ class Chain {
     for (final l in logs) {
       // data layout: payout | string offset | length | bytes
       final data = (l['data'] as String).substring(2);
-      out.add(Merchant(
-        id: _uint(_wordFromHex(l['topics'][1] as String)).toInt(),
-        owner: owner,
-        payout: _addr(data.substring(0, 64)),
-        name: data.length > 128 ? _string(data.substring(128)) : '',
-      ));
+      out.add(
+        Merchant(
+          id: _uint(_wordFromHex(l['topics'][1] as String)).toInt(),
+          owner: owner,
+          payout: _addr(data.substring(0, 64)),
+          name: data.length > 128 ? _string(data.substring(128)) : '',
+        ),
+      );
     }
     out.sort((a, b) => a.id.compareTo(b.id));
     return out;

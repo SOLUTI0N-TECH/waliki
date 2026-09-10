@@ -15,10 +15,16 @@ class WalikiConfig {
   /// Reown (WalletConnect) project id for the in-app wallet connection.
   /// Injected at build time so it is never committed:
   ///   `--dart-define=WALIKI_REOWN_ID=<project id>`
-  static const String reownProjectId =
-      String.fromEnvironment('WALIKI_REOWN_ID');
+  static const String reownProjectId = String.fromEnvironment(
+    'WALIKI_REOWN_ID',
+  );
   static const int quoteMinutes = 15;
   static const int deployBlock = 46249000; // shortly before the router deploy
+
+  /// Shows the phase 2/3 navigable mockups (Modo Facil, Tienda, Puntaje) on
+  /// the home screen. Off while they do nothing; flip to true to walk the
+  /// full product vision in the pitch.
+  static const bool showVision = false;
 
   /// Base URL of the web payment page the QR points to: the public site, so
   /// any phone can pay over mobile data — no shared WiFi needed.

@@ -1,11 +1,14 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:waliki_app/main.dart';
 import 'package:waliki_app/session.dart';
+import 'package:waliki_app/skeletons.dart';
 
 void main() {
-  testWidgets('a fresh install opens on the welcome screen with both roles',
-      (tester) async {
+  testWidgets('a fresh install opens on the welcome screen with both roles', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const WalikiApp());
     await tester.pumpAndSettle();
@@ -47,5 +50,30 @@ void main() {
       expect(Session.parseCajaCode('W0-1234'), isNull);
       expect(Session.parseCajaCode('W1-12'), isNull);
     });
+  });
+
+  testWidgets('every skeleton lays out at phone size and animates', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    for (final skeleton in const [
+      HomeSkeleton(),
+      MisComerciosSkeleton(),
+      HistorialSkeleton(),
+      ReportesSkeleton(),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: SafeArea(child: skeleton)),
+        ),
+      );
+      // Two frames apart: the shimmer must keep ticking without throwing.
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(tester.takeException(), isNull);
+    }
   });
 }

@@ -18,7 +18,13 @@ class Session {
   String? pin;
   String rate;
 
-  Session({this.role, this.ownerAddress, this.merchantId, this.pin, this.rate = '14.00'});
+  Session({
+    this.role,
+    this.ownerAddress,
+    this.merchantId,
+    this.pin,
+    this.rate = '14.00',
+  });
 
   bool get isReady => role != null && merchantId != null;
 
@@ -28,7 +34,10 @@ class Session {
     return Session(
       role: roleStr == null
           ? null
-          : Role.values.firstWhere((r) => r.name == roleStr, orElse: () => Role.cajero),
+          : Role.values.firstWhere(
+              (r) => r.name == roleStr,
+              orElse: () => Role.cajero,
+            ),
       ownerAddress: p.getString(_kOwner),
       merchantId: p.getInt(_kMerchant),
       pin: p.getString(_kPin),
@@ -70,11 +79,13 @@ class Session {
   }
 
   /// Register-linking code the owner hands to a cashier: `W<merchantId>-<pin>`.
-  static String buildCajaCode(int merchantId, String pin) => 'W$merchantId-$pin';
+  static String buildCajaCode(int merchantId, String pin) =>
+      'W$merchantId-$pin';
 
   /// Parses "W1-4821" (case-insensitive, spaces tolerated). Null when invalid.
   static ({int merchantId, String pin})? parseCajaCode(String raw) {
-    final m = RegExp(r'^\s*[wW]?\s*(\d+)\s*[-: ]\s*(\d{4,8})\s*$').firstMatch(raw);
+    final m = RegExp(r'^\s*[wW]?\s*(\d+)\s*[-: ]\s*(\d{4,8})\s*$')
+        .firstMatch(raw);
     if (m == null) return null;
     final id = int.tryParse(m.group(1)!);
     if (id == null || id <= 0) return null;
