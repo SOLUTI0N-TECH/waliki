@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../chain.dart';
 import '../session.dart';
 import '../ui.dart';
+import '../wallet.dart';
 import 'cobrar.dart';
 import 'concepto.dart';
 import 'historial.dart';
@@ -13,7 +14,11 @@ import 'welcome.dart';
 class HomeScreen extends StatefulWidget {
   final Session session;
   final int merchantId;
-  const HomeScreen({super.key, required this.session, required this.merchantId});
+  const HomeScreen({
+    super.key,
+    required this.session,
+    required this.merchantId,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -39,15 +44,21 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'vincular':
         final m = await _merchant;
         if (!mounted) return;
-        Navigator.of(context).push(MaterialPageRoute(
+        Navigator.of(context).push(
+          MaterialPageRoute(
             builder: (_) =>
-                VincularCajaScreen(session: widget.session, merchant: m)));
+                VincularCajaScreen(session: widget.session, merchant: m),
+          ),
+        );
       case 'salir':
+        // No-op for a cashier: that role never connects a wallet.
+        await Wallet.instance.disconnect();
         await widget.session.clear();
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-              builder: (_) => WelcomeScreen(session: widget.session)),
+            builder: (_) => WelcomeScreen(session: widget.session),
+          ),
           (route) => false,
         );
     }
@@ -65,19 +76,27 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => setState(_reload),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, size: 20, color: kInkSoft),
+            icon: const Icon(
+              Icons.more_vert_rounded,
+              size: 20,
+              color: kInkSoft,
+            ),
             onSelected: _menu,
             itemBuilder: (context) => [
               if (esDuenio)
                 PopupMenuItem(
                   value: 'vincular',
-                  child: Text('Vincular cajero',
-                      style: wk(size: 14, weight: 600)),
+                  child: Text(
+                    'Vincular cajero',
+                    style: wk(size: 14, weight: 600),
+                  ),
                 ),
               PopupMenuItem(
                 value: 'salir',
-                child: Text(esDuenio ? 'Desconectar' : 'Desvincular caja',
-                    style: wk(size: 14, weight: 600)),
+                child: Text(
+                  esDuenio ? 'Desconectar' : 'Desvincular caja',
+                  style: wk(size: 14, weight: 600),
+                ),
               ),
             ],
           ),
@@ -103,67 +122,100 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  WChip(esDuenio ? 'Dueño' : 'Cajero',
-                      bg: kSurface2, fg: kInkSoft),
+                  WChip(
+                    esDuenio ? 'Dueño' : 'Cajero',
+                    bg: kSurface2,
+                    fg: kInkSoft,
+                  ),
                 ],
               ),
               const SizedBox(height: 2),
-              Text('Verificado en Base Sepolia',
-                  style: wk(size: 12.5, weight: 500, color: kInkSoft)),
+              Text(
+                'Verificado en Base Sepolia',
+                style: wk(size: 12.5, weight: 500, color: kInkSoft),
+              ),
               const SizedBox(height: 16),
               WCard(
                 child: FutureBuilder<List<Payment>>(
                   future: _payments,
                   builder: (context, snap) {
                     final list = snap.data;
-                    final total = list?.fold<BigInt>(
-                            BigInt.zero, (a, p) => a + p.amount) ??
+                    final total =
+                        list?.fold<BigInt>(
+                          BigInt.zero,
+                          (a, p) => a + p.amount,
+                        ) ??
                         BigInt.zero;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('VENTAS VERIFICADAS',
-                            style: wk(
-                                size: 11,
-                                weight: 700,
-                                color: kInkSoft,
-                                tracking: 0.04)),
-                        const SizedBox(height: 7),
-                        Text(list == null ? '…' : '${fmtUsdt(total)} tUSDT',
-                            style: wkNum(size: 33)),
-                        const SizedBox(height: 5),
-                        Row(children: [
-                          const Icon(Icons.verified_rounded,
-                              size: 15, color: kBrand),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              list == null
-                                  ? 'consultando la cadena…'
-                                  : '${list.length} pagos on-chain, auditables por cualquiera',
-                              style:
-                                  wk(size: 12.5, weight: 500, color: kInkSoft),
-                            ),
+                        Text(
+                          'VENTAS VERIFICADAS',
+                          style: wk(
+                            size: 11,
+                            weight: 700,
+                            color: kInkSoft,
+                            tracking: 0.04,
                           ),
-                        ]),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          list == null ? '…' : '${fmtUsdt(total)} tUSDT',
+                          style: wkNum(size: 33),
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.verified_rounded,
+                              size: 15,
+                              color: kBrand,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                list == null
+                                    ? 'consultando la cadena…'
+                                    : '${list.length} pagos on-chain, auditables por cualquiera',
+                                style: wk(
+                                  size: 12.5,
+                                  weight: 500,
+                                  color: kInkSoft,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     );
                   },
                 ),
               ),
               const SizedBox(height: 14),
-              PrimaryButton('Cobrar', onTap: () async {
-                await Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => CobrarScreen(
-                          session: widget.session,
-                          merchantId: widget.merchantId,
-                        )));
-                setState(_reload);
-              }),
+              PrimaryButton(
+                'Cobrar',
+                onTap: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CobrarScreen(
+                        session: widget.session,
+                        merchantId: widget.merchantId,
+                      ),
+                    ),
+                  );
+                  setState(_reload);
+                },
+              ),
               const SizedBox(height: 22),
-              Text('TU COMERCIO',
-                  style: wk(
-                      size: 11, weight: 700, color: kInkSoft, tracking: 0.04)),
+              Text(
+                'TU COMERCIO',
+                style: wk(
+                  size: 11,
+                  weight: 700,
+                  color: kInkSoft,
+                  tracking: 0.04,
+                ),
+              ),
               const SizedBox(height: 10),
               // A grid (not a Row): _ActionCard uses a Spacer, which needs a
               // bounded height. Inside a scroll view a Row leaves the height
@@ -181,27 +233,39 @@ class _HomeScreenState extends State<HomeScreen> {
                     iconColor: kBrand,
                     title: 'Historial',
                     subtitle: 'Cada venta, verificada en la cadena',
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
                         builder: (_) =>
-                            HistorialScreen(merchantId: widget.merchantId))),
+                            HistorialScreen(merchantId: widget.merchantId),
+                      ),
+                    ),
                   ),
                   _ActionCard(
                     icon: Icons.insights_rounded,
                     iconColor: kBrand,
                     title: 'Reportes',
                     subtitle: 'Totales, ticket promedio y CSV',
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
                         builder: (_) => ReportesScreen(
-                              session: widget.session,
-                              merchantId: widget.merchantId,
-                            ))),
+                          session: widget.session,
+                          merchantId: widget.merchantId,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 22),
-              Text('WALIKI COMPLETO',
-                  style: wk(
-                      size: 11, weight: 700, color: kInkSoft, tracking: 0.04)),
+              Text(
+                'WALIKI COMPLETO',
+                style: wk(
+                  size: 11,
+                  weight: 700,
+                  color: kInkSoft,
+                  tracking: 0.04,
+                ),
+              ),
               const SizedBox(height: 10),
               GridView.count(
                 crossAxisCount: 2,
@@ -217,8 +281,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: 'Saldo y billetera',
                     subtitle: 'Compra saldo con QR o tarjeta',
                     tag: 'Fase 2',
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const ModoFacilScreen())),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ModoFacilScreen(),
+                      ),
+                    ),
                   ),
                   _ActionCard(
                     icon: Icons.storefront_rounded,
@@ -226,8 +293,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: 'Tienda',
                     subtitle: 'Tus productos, pagados igual',
                     tag: 'Fase 3',
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => const ComercioScreen())),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ComercioScreen()),
+                    ),
                   ),
                 ],
               ),
@@ -241,14 +309,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 tag: 'Pronto',
                 wide: true,
                 onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const PuntajeScreen())),
+                  MaterialPageRoute(builder: (_) => const PuntajeScreen()),
+                ),
               ),
               const SizedBox(height: 18),
               Center(
                 child: Text(
                   'Los fondos llegan directo a la wallet del dueño —\nWaliki nunca los toca.',
                   textAlign: TextAlign.center,
-                  style: wk(size: 12, weight: 500, color: kInkSoft, height: 1.5),
+                  style: wk(
+                    size: 12,
+                    weight: 500,
+                    color: kInkSoft,
+                    height: 1.5,
+                  ),
                 ),
               ),
             ],
@@ -300,16 +374,20 @@ class _ActionCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(title,
-                              style:
-                                  wk(size: 14.5, weight: 700, tracking: -0.02)),
+                          Text(
+                            title,
+                            style: wk(size: 14.5, weight: 700, tracking: -0.02),
+                          ),
                           const SizedBox(height: 3),
-                          Text(subtitle,
-                              style: wk(
-                                  size: 11,
-                                  weight: 500,
-                                  color: kInkSoft,
-                                  height: 1.35)),
+                          Text(
+                            subtitle,
+                            style: wk(
+                              size: 11,
+                              weight: 500,
+                              color: kInkSoft,
+                              height: 1.35,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -328,17 +406,22 @@ class _ActionCard extends StatelessWidget {
                       ],
                     ),
                     const Spacer(),
-                    Text(title,
-                        style: wk(size: 14.5, weight: 700, tracking: -0.02)),
+                    Text(
+                      title,
+                      style: wk(size: 14.5, weight: 700, tracking: -0.02),
+                    ),
                     const SizedBox(height: 3),
-                    Text(subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: wk(
-                            size: 11,
-                            weight: 500,
-                            color: kInkSoft,
-                            height: 1.35)),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: wk(
+                        size: 11,
+                        weight: 500,
+                        color: kInkSoft,
+                        height: 1.35,
+                      ),
+                    ),
                   ],
                 ),
         ),

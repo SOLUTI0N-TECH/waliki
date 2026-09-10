@@ -64,8 +64,16 @@ class Wallet {
     await _modal?.openModalView();
   }
 
+  /// Drops the WalletConnect session, so the next connect shows the wallet
+  /// chooser again instead of the "already connected" view.
   Future<void> disconnect() async {
-    await _modal?.disconnect();
+    final modal = _modal;
+    if (modal == null || !modal.isConnected) return;
+    try {
+      await modal.disconnect();
+    } catch (_) {
+      // The wallet may be gone already; what matters is that we drop it here.
+    }
   }
 
   /// Sends registerMerchant(payout, name) from the connected wallet and
@@ -96,7 +104,7 @@ class Wallet {
             'to': WalikiConfig.router,
             'data': data,
             'value': '0x0',
-          }
+          },
         ],
       ),
     );
@@ -110,12 +118,10 @@ const String _selRegisterMerchant = 'a6c8a384';
 
 String _pad(String hexNoPrefix) => hexNoPrefix.padLeft(64, '0');
 
-String _encodeRegisterMerchant({
-  required String payout,
-  required String name,
-}) {
+String _encodeRegisterMerchant({required String payout, required String name}) {
   final addr = _pad(payout.replaceFirst('0x', '').toLowerCase());
-  const offset = '0000000000000000000000000000000000000000000000000000000000000040';
+  const offset =
+      '0000000000000000000000000000000000000000000000000000000000000040';
   final bytes = utf8.encode(name);
   final len = _pad(bytes.length.toRadixString(16));
   final body = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();

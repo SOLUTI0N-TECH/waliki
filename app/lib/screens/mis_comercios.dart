@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../chain.dart';
 import '../session.dart';
 import '../ui.dart';
+import '../wallet.dart';
 import 'crear_comercio.dart';
 import 'home.dart';
 import 'vincular_caja.dart';
@@ -32,8 +33,11 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
   }
 
   Future<void> _crear() async {
-    final created = await Navigator.of(context).push<int>(MaterialPageRoute(
-        builder: (_) => CrearComercioScreen(session: widget.session)));
+    final created = await Navigator.of(context).push<int>(
+      MaterialPageRoute(
+        builder: (_) => CrearComercioScreen(session: widget.session),
+      ),
+    );
     if (!mounted) return;
     setState(_reload);
     if (created != null) _abrir(created);
@@ -42,12 +46,16 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
   void _abrir(int merchantId) {
     widget.session.merchantId = merchantId;
     widget.session.save();
-    Navigator.of(context).push(MaterialPageRoute(
+    Navigator.of(context).push(
+      MaterialPageRoute(
         builder: (_) =>
-            HomeScreen(session: widget.session, merchantId: merchantId)));
+            HomeScreen(session: widget.session, merchantId: merchantId),
+      ),
+    );
   }
 
   Future<void> _salir() async {
+    await Wallet.instance.disconnect();
     await widget.session.clear();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -87,14 +95,21 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.account_balance_wallet_rounded,
-                      size: 17, color: kBrand),
+                  const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 17,
+                    color: kBrand,
+                  ),
                   const SizedBox(width: 9),
-                  Text('Conectado como',
-                      style: wk(size: 12.5, weight: 500, color: kInkSoft)),
+                  Text(
+                    'Conectado como',
+                    style: wk(size: 12.5, weight: 500, color: kInkSoft),
+                  ),
                   const Spacer(),
-                  Text(short(owner),
-                      style: wk(size: 12.5, weight: 600, mono: true)),
+                  Text(
+                    short(owner),
+                    style: wk(size: 12.5, weight: 600, mono: true),
+                  ),
                 ],
               ),
             ),
@@ -125,7 +140,8 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                     itemCount: list.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
                     itemBuilder: (context, i) {
                       final m = list[i];
                       return _MerchantCard(
@@ -134,7 +150,9 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
                         onLink: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => VincularCajaScreen(
-                                session: widget.session, merchant: m),
+                              session: widget.session,
+                              merchant: m,
+                            ),
                           ),
                         ),
                       );
@@ -175,8 +193,10 @@ class _MerchantCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(merchant.displayName,
-                    style: wk(size: 17, weight: 700, tracking: -0.02)),
+                child: Text(
+                  merchant.displayName,
+                  style: wk(size: 17, weight: 700, tracking: -0.02),
+                ),
               ),
               WChip('#${merchant.id}', bg: kSurface2, fg: kInkSoft),
             ],
@@ -186,8 +206,10 @@ class _MerchantCard extends StatelessWidget {
             children: [
               const Icon(Icons.lock_outline, size: 13, color: kInkSoft),
               const SizedBox(width: 5),
-              Text('cobra en ${short(merchant.payout)}',
-                  style: wk(size: 11.5, weight: 500, color: kInkSoft, mono: true)),
+              Text(
+                'cobra en ${short(merchant.payout)}',
+                style: wk(size: 11.5, weight: 500, color: kInkSoft, mono: true),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -201,10 +223,13 @@ class _MerchantCard extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       backgroundColor: kBrand,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: Text('Abrir caja',
-                        style: wk(size: 14, weight: 700, color: Colors.white)),
+                    child: Text(
+                      'Abrir caja',
+                      style: wk(size: 14, weight: 700, color: Colors.white),
+                    ),
                   ),
                 ),
               ),
@@ -217,10 +242,13 @@ class _MerchantCard extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: kLine, width: 1.5),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: Text('Vincular cajero',
-                        style: wk(size: 14, weight: 700, color: kBrandInk)),
+                    child: Text(
+                      'Vincular cajero',
+                      style: wk(size: 14, weight: 700, color: kBrandInk),
+                    ),
                   ),
                 ),
               ),
@@ -240,23 +268,26 @@ class _Message extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 44, color: kInkSoft),
-              const SizedBox(height: 14),
-              Text(title,
-                  textAlign: TextAlign.center,
-                  style: wk(size: 17, weight: 700)),
-              const SizedBox(height: 7),
-              Text(body,
-                  textAlign: TextAlign.center,
-                  style: wk(
-                      size: 13, weight: 500, color: kInkSoft, height: 1.5)),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 44, color: kInkSoft),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: wk(size: 17, weight: 700),
           ),
-        ),
-      );
+          const SizedBox(height: 7),
+          Text(
+            body,
+            textAlign: TextAlign.center,
+            style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.5),
+          ),
+        ],
+      ),
+    ),
+  );
 }

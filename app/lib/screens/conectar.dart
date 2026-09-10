@@ -83,6 +83,12 @@ class _ConectarScreenState extends State<ConectarScreen> {
       _error = null;
       _waitingWallet = true;
     });
+    // A session can outlive the app's own: "Desconectar" used to clear only
+    // Waliki's side, and WalletConnect also restores itself on relaunch. Drop
+    // it first so the chooser always comes up and the poll below can only see
+    // an address the user just approved.
+    await Wallet.instance.disconnect();
+    if (!mounted) return;
     try {
       await Wallet.instance.openModal(context);
     } catch (e) {
@@ -95,11 +101,22 @@ class _ConectarScreenState extends State<ConectarScreen> {
       return;
     }
     // The modal reports its result asynchronously; watch for the address.
-    _poll = Timer.periodic(const Duration(milliseconds: 600), (t) {
+    var waited = Duration.zero;
+    const tick = Duration(milliseconds: 600);
+    _poll = Timer.periodic(tick, (t) {
+      if (!mounted) return t.cancel();
       final addr = Wallet.instance.address;
-      if (addr != null && mounted) {
+      if (addr != null) {
         t.cancel();
         _finish(addr);
+        return;
+      }
+      // Nothing came back: the user dismissed the modal or never approved.
+      // Release the button instead of leaving it stuck on "Esperando…".
+      waited += tick;
+      if (waited >= const Duration(minutes: 3)) {
+        t.cancel();
+        setState(() => _waitingWallet = false);
       }
     });
   }
@@ -119,7 +136,9 @@ class _ConectarScreenState extends State<ConectarScreen> {
 
   void _connectPasted() {
     if (!_valid) {
-      setState(() => _error = 'Esa dirección no es válida (0x… de 42 caracteres).');
+      setState(
+        () => _error = 'Esa dirección no es válida (0x… de 42 caracteres).',
+      );
       return;
     }
     _finish(_ctrl.text.trim());
@@ -145,15 +164,22 @@ class _ConectarScreenState extends State<ConectarScreen> {
                   width: 76,
                   height: 76,
                   decoration: const BoxDecoration(
-                      shape: BoxShape.circle, color: kBrandTint),
-                  child: const Icon(Icons.account_balance_wallet_rounded,
-                      size: 38, color: kBrand),
+                    shape: BoxShape.circle,
+                    color: kBrandTint,
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 38,
+                    color: kBrand,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Tu billetera, tus llaves',
-                  textAlign: TextAlign.center,
-                  style: wk(size: 21, weight: 800, tracking: -0.03)),
+              Text(
+                'Tu billetera, tus llaves',
+                textAlign: TextAlign.center,
+                style: wk(size: 21, weight: 800, tracking: -0.03),
+              ),
               const SizedBox(height: 8),
               Text(
                 'Waliki nunca ve tu frase secreta. Conectas para identificarte y '
@@ -180,25 +206,32 @@ class _ConectarScreenState extends State<ConectarScreen> {
                   ),
                 ],
                 const SizedBox(height: 20),
-                Row(children: [
-                  const Expanded(child: Divider(color: kLine)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('o pega tu dirección',
-                        style: wk(size: 12, weight: 600, color: kInkSoft)),
-                  ),
-                  const Expanded(child: Divider(color: kLine)),
-                ]),
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: kLine)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'o pega tu dirección',
+                        style: wk(size: 12, weight: 600, color: kInkSoft),
+                      ),
+                    ),
+                    const Expanded(child: Divider(color: kLine)),
+                  ],
+                ),
                 const SizedBox(height: 16),
               ] else
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Text('TU DIRECCIÓN',
-                      style: wk(
-                          size: 11,
-                          weight: 700,
-                          color: kInkSoft,
-                          tracking: 0.05)),
+                  child: Text(
+                    'TU DIRECCIÓN',
+                    style: wk(
+                      size: 11,
+                      weight: 700,
+                      color: kInkSoft,
+                      tracking: 0.05,
+                    ),
+                  ),
                 ),
               TextField(
                 controller: _ctrl,
@@ -206,12 +239,18 @@ class _ConectarScreenState extends State<ConectarScreen> {
                 onChanged: (_) => setState(() => _error = null),
                 decoration: InputDecoration(
                   hintText: '0x…',
-                  hintStyle:
-                      wk(size: 13, weight: 500, color: kInkSoft, mono: true),
+                  hintStyle: wk(
+                    size: 13,
+                    weight: 500,
+                    color: kInkSoft,
+                    mono: true,
+                  ),
                   filled: true,
                   fillColor: kSurface,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: const BorderSide(color: kLine, width: 1.5),
@@ -222,8 +261,11 @@ class _ConectarScreenState extends State<ConectarScreen> {
                   ),
                   suffixIcon: IconButton(
                     tooltip: 'Pegar',
-                    icon: const Icon(Icons.content_paste_rounded,
-                        size: 19, color: kInkSoft),
+                    icon: const Icon(
+                      Icons.content_paste_rounded,
+                      size: 19,
+                      color: kInkSoft,
+                    ),
                     onPressed: _paste,
                   ),
                 ),
@@ -231,14 +273,18 @@ class _ConectarScreenState extends State<ConectarScreen> {
               if (_error != null) ...[
                 const SizedBox(height: 10),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
                   decoration: BoxDecoration(
                     color: kDangerTint,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Text(_error!,
-                      style: wk(size: 13, weight: 600, color: kDanger)),
+                  child: Text(
+                    _error!,
+                    style: wk(size: 13, weight: 600, color: kDanger),
+                  ),
                 ),
               ],
               const SizedBox(height: 14),
@@ -250,10 +296,13 @@ class _ConectarScreenState extends State<ConectarScreen> {
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: kLine, width: 1.5),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                    child: Text('Usar esta dirección',
-                        style: wk(size: 14, weight: 700, color: kBrandInk)),
+                    child: Text(
+                      'Usar esta dirección',
+                      style: wk(size: 14, weight: 700, color: kBrandInk),
+                    ),
                   ),
                 )
               else
@@ -263,14 +312,20 @@ class _ConectarScreenState extends State<ConectarScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('¿No sabes cuál es tu dirección?',
-                        style: wk(size: 14, weight: 700)),
+                    Text(
+                      '¿No sabes cuál es tu dirección?',
+                      style: wk(size: 14, weight: 700),
+                    ),
                     const SizedBox(height: 6),
                     Text(
                       'Ábrela en MetaMask y toca el nombre de tu cuenta para copiarla, '
                       'o entra a Waliki web, conecta tu billetera y cópiala desde ahí.',
                       style: wk(
-                          size: 12.5, weight: 500, color: kInkSoft, height: 1.5),
+                        size: 12.5,
+                        weight: 500,
+                        color: kInkSoft,
+                        height: 1.5,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     SizedBox(
@@ -278,13 +333,16 @@ class _ConectarScreenState extends State<ConectarScreen> {
                       child: OutlinedButton.icon(
                         onPressed: _openWeb,
                         icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                        label: Text('Abrir Waliki web',
-                            style: wk(size: 14, weight: 700, color: kBrandInk)),
+                        label: Text(
+                          'Abrir Waliki web',
+                          style: wk(size: 14, weight: 700, color: kBrandInk),
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: kBrandInk,
                           side: const BorderSide(color: kBrand, width: 1.5),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                       ),
                     ),
