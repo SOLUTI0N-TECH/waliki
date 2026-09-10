@@ -125,7 +125,7 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
                     itemCount: list.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
                     itemBuilder: (context, i) {
                       final m = list[i];
                       return _MerchantCard(
