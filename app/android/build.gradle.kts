@@ -30,8 +30,7 @@ subprojects {
         if (name == "coinbase_wallet_sdk") {
             val rules = file("consumer-rules.pro")
             if (!rules.exists()) {
-                rules.writeText("# created by waliki: upstream package omits this file
-")
+                rules.writeText("# created by waliki: upstream package omits this file")
             }
         }
         extensions.findByName("android")?.let { ext ->
