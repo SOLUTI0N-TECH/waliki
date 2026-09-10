@@ -16,6 +16,13 @@ class Wallet {
 
   ReownAppKitModal? _modal;
 
+  /// Carries the connected address as AppKit reports it, so screens react to
+  /// the wallet instead of guessing when it will answer.
+  final ValueNotifier<String?> connection = ValueNotifier<String?>(null);
+
+  /// True while AppKit's own sheet is on screen.
+  bool get isModalOpen => _modal?.isOpen ?? false;
+
   /// The connected address, or null when there is no session.
   String? get address {
     final a = _modal?.session?.getAddress('eip155');
@@ -57,7 +64,36 @@ class Wallet {
     );
     await modal.init();
     _modal = modal;
+    modal.onModalConnect.subscribe(_onConnect);
+    modal.onModalDisconnect.subscribe(_onDisconnect);
+    await _pinChain();
   }
+
+  /// Pins AppKit's selected chain to Waliki's network.
+  ///
+  /// Left null, several of its own screens blow up on `selectedChain!` — the
+  /// account view crashes on open (`wallet_features_page.dart:144`) and again
+  /// on the receive button (`receive_page.dart:37`).
+  Future<void> _pinChain() async {
+    final modal = _modal;
+    if (modal == null || modal.selectedChain != null) return;
+    final chain = ReownAppKitModalNetworks.getNetworkInfo(
+      'eip155',
+      '${WalikiConfig.chainId}',
+    );
+    if (chain != null) await modal.selectChain(chain);
+  }
+
+  void _onConnect(ModalConnect? event) {
+    _pinChain();
+    // Waliki has no use for AppKit's account view: the wallet is here to sign,
+    // not to be browsed. Close the sheet the moment the session exists, which
+    // also keeps the user away from the crashing screens above.
+    _modal?.closeModal();
+    connection.value = address;
+  }
+
+  void _onDisconnect(ModalDisconnect? event) => connection.value = null;
 
   Future<void> openModal(BuildContext context) async {
     await init(context);
@@ -68,12 +104,16 @@ class Wallet {
   /// chooser again instead of the "already connected" view.
   Future<void> disconnect() async {
     final modal = _modal;
-    if (modal == null || !modal.isConnected) return;
+    // isConnected can still be false while a stored session is being restored,
+    // and that half-session is enough for openModalView to show the account
+    // view instead of the wallet chooser.
+    if (modal == null || (!modal.isConnected && modal.session == null)) return;
     try {
       await modal.disconnect();
     } catch (_) {
       // The wallet may be gone already; what matters is that we drop it here.
     }
+    connection.value = null;
   }
 
   /// Sends registerMerchant(payout, name) from the connected wallet and

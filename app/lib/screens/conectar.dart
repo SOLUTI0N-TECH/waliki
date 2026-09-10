@@ -111,10 +111,13 @@ class _ConectarScreenState extends State<ConectarScreen> {
         _finish(addr);
         return;
       }
-      // Nothing came back: the user dismissed the modal or never approved.
-      // Release the button instead of leaving it stuck on "Esperando…".
+      // Nothing came back. Release the button instead of leaving it stuck on
+      // "Esperando…": either the sheet is gone (dismissed, or the wallet never
+      // came back to us) or the wallet simply never answered.
       waited += tick;
-      if (waited >= const Duration(minutes: 3)) {
+      final dismissed =
+          waited > const Duration(seconds: 2) && !Wallet.instance.isModalOpen;
+      if (dismissed || waited >= const Duration(minutes: 3)) {
         t.cancel();
         setState(() => _waitingWallet = false);
       }
