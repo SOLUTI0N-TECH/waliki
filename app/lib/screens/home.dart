@@ -165,32 +165,36 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: wk(
                       size: 11, weight: 700, color: kInkSoft, tracking: 0.04)),
               const SizedBox(height: 10),
-              Row(
+              // A grid (not a Row): _ActionCard uses a Spacer, which needs a
+              // bounded height. Inside a scroll view a Row leaves the height
+              // unbounded and layout throws.
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.32,
                 children: [
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.receipt_long_rounded,
-                      iconColor: kBrand,
-                      title: 'Historial',
-                      subtitle: 'Cada venta, verificada en la cadena',
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) =>
-                              HistorialScreen(merchantId: widget.merchantId))),
-                    ),
+                  _ActionCard(
+                    icon: Icons.receipt_long_rounded,
+                    iconColor: kBrand,
+                    title: 'Historial',
+                    subtitle: 'Cada venta, verificada en la cadena',
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) =>
+                            HistorialScreen(merchantId: widget.merchantId))),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.insights_rounded,
-                      iconColor: kBrand,
-                      title: 'Reportes',
-                      subtitle: 'Totales, ticket promedio y CSV',
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => ReportesScreen(
-                                session: widget.session,
-                                merchantId: widget.merchantId,
-                              ))),
-                    ),
+                  _ActionCard(
+                    icon: Icons.insights_rounded,
+                    iconColor: kBrand,
+                    title: 'Reportes',
+                    subtitle: 'Totales, ticket promedio y CSV',
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => ReportesScreen(
+                              session: widget.session,
+                              merchantId: widget.merchantId,
+                            ))),
                   ),
                 ],
               ),
