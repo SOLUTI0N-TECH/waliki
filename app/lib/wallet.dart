@@ -132,6 +132,16 @@ class Wallet {
     } catch (_) {
       // The wallet may be gone already; what matters is that we drop it here.
     }
+    // A WalletConnect session is not cleared by disconnect() itself. The
+    // package says so: "if sessionService.isWC then _cleanSession() is being
+    // called on sessionDelete event" — an event that arrives from the relay
+    // after this await returns. Until it lands, openModalView still believes
+    // it is connected and forces its account view instead of the chooser, so
+    // wait for the flag rather than race the network.
+    final deadline = DateTime.now().add(const Duration(seconds: 3));
+    while (modal.isConnected && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
     connection.value = null;
   }
 

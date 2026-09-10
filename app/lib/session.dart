@@ -78,15 +78,15 @@ class Session {
     await save();
   }
 
-  /// Register-linking code the owner hands to a cashier: `W<merchantId><pin>`.
+  /// Register-linking code the owner hands to a cashier: `<merchantId><pin>`.
   ///
-  /// No separator: a dash means leaving the letters keyboard on a phone, and
-  /// the code is short enough to read out as one run. The PIN is always four
-  /// digits, so the shop id is simply whatever comes before them.
-  static String buildCajaCode(int merchantId, String pin) => 'W$merchantId$pin';
+  /// Digits only: the cashier never leaves the number keyboard, and there is
+  /// nothing to spell out. The PIN is always four digits, so the shop id is
+  /// whatever comes before them.
+  static String buildCajaCode(int merchantId, String pin) => '$merchantId$pin';
 
-  /// Parses "W14821". The `W`, its case and any separator are optional, so a
-  /// cashier can type just the digits — or an older code with a dash.
+  /// Parses "74821". A leading `W` and any separator are still accepted, so
+  /// codes handed out under the older formats keep working.
   static ({int merchantId, String pin})? parseCajaCode(String raw) {
     // Separated form first: codes handed out before this change, and anything
     // typed with a dash, colon or space out of habit.
