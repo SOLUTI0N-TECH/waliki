@@ -52,7 +52,7 @@ VITE_ROUTER=0x...        # la que imprimio el paso 1
 VITE_TOKEN=0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2
 VITE_TOKEN_SYMBOL=USDT
 VITE_TOKEN_DECIMALS=6
-VITE_IS_TESTNET=false    # apaga el faucet y el chip "Fase de prueba"
+VITE_IS_TESTNET=false    # apaga el faucet de tUSDT de la página de pago
 ```
 
 ```bash

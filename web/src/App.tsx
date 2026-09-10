@@ -3,7 +3,6 @@ import Caja from './pages/Caja'
 import Home from './pages/Home'
 import Pay from './pages/Pay'
 import Registro from './pages/Registro'
-import { network } from './lib/network'
 
 export default function App() {
   return (
@@ -13,15 +12,6 @@ export default function App() {
           <span className="brand-mark" />
           waliki
         </Link>
-        {network.isTestnet && (
-        <span
-          className="env-chip"
-          title="Fase de prueba: red Base Sepolia. Las transacciones son reales y verificables, pero los fondos no tienen valor."
-        >
-          <span className="env-dot" />
-          Fase de prueba
-        </span>
-        )}
       </header>
       <main>
         <Routes>

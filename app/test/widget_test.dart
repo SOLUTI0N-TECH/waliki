@@ -13,7 +13,6 @@ void main() {
     expect(find.text('Soy el dueño'), findsOneWidget);
     expect(find.text('Soy cajero'), findsOneWidget);
     // The test-phase marker must always be visible — honest, never loud
-    expect(find.text('Fase de prueba'), findsOneWidget);
   });
 
   testWidgets('a linked register opens on the PIN gate', (tester) async {

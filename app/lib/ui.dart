@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // ── Design tokens ────────────────────────────────────────────────────────
 // Same palette and type scale as the web app, so the product reads as one.
@@ -39,22 +40,30 @@ TextStyle wk({
   double? height,
   bool tabular = false,
   bool mono = false,
-}) =>
-    TextStyle(
-      fontFamily: mono ? 'JetBrainsMono' : 'PlusJakartaSans',
-      fontSize: size,
-      color: color,
-      height: height,
-      letterSpacing: size * tracking,
-      fontVariations: [FontVariation('wght', weight)],
-      fontWeight: FontWeight.values[
-          ((weight / 100).round() - 1).clamp(0, FontWeight.values.length - 1)],
-      fontFeatures: tabular ? const [FontFeature.tabularFigures()] : null,
-    );
+}) => TextStyle(
+  fontFamily: mono ? 'JetBrainsMono' : 'PlusJakartaSans',
+  fontSize: size,
+  color: color,
+  height: height,
+  letterSpacing: size * tracking,
+  fontVariations: [FontVariation('wght', weight)],
+  fontWeight:
+      FontWeight.values[((weight / 100).round() - 1).clamp(
+        0,
+        FontWeight.values.length - 1,
+      )],
+  fontFeatures: tabular ? const [FontFeature.tabularFigures()] : null,
+);
 
 /// Money and any figure that updates in place (tabular: never jitters).
 TextStyle wkNum({double size = 42, double weight = 800, Color color = kInk}) =>
-    wk(size: size, weight: weight, color: color, tracking: -0.04, tabular: true);
+    wk(
+      size: size,
+      weight: weight,
+      color: color,
+      tracking: -0.04,
+      tabular: true,
+    );
 
 String fmtNum(double v) {
   // Bolivian format: 1.245,50
@@ -77,35 +86,6 @@ String short(String v) =>
 
 // ── Shared widgets ───────────────────────────────────────────────────────
 
-/// Discreet, honest testnet marker: present in every screen, never shouting.
-class EnvChip extends StatelessWidget {
-  const EnvChip({super.key});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(8, 4, 10, 4),
-        decoration: BoxDecoration(
-          color: kSurface2,
-          border: Border.all(color: kLine),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                  shape: BoxShape.circle, color: kAmber),
-            ),
-            const SizedBox(width: 6),
-            Text('Fase de prueba',
-                style: wk(size: 11.5, weight: 600, color: kInkSoft)),
-          ],
-        ),
-      );
-}
-
 /// Marks a vision screen as a mockup — honest, but not louder than the design.
 class ConceptChip extends StatelessWidget {
   final String label;
@@ -113,74 +93,117 @@ class ConceptChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(8, 4, 10, 4),
-        margin: const EdgeInsets.only(right: 8),
-        decoration: BoxDecoration(
-          color: kVioletTint,
-          borderRadius: BorderRadius.circular(999),
+    padding: const EdgeInsets.fromLTRB(8, 4, 10, 4),
+    margin: const EdgeInsets.only(right: 8),
+    decoration: BoxDecoration(
+      color: kVioletTint,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: kViolet,
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                  shape: BoxShape.circle, color: kViolet),
-            ),
-            const SizedBox(width: 6),
-            Text(label, style: wk(size: 11.5, weight: 700, color: kViolet)),
-          ],
-        ),
-      );
+        const SizedBox(width: 6),
+        Text(label, style: wk(size: 11.5, weight: 700, color: kViolet)),
+      ],
+    ),
+  );
 }
 
-/// Slim top bar: wordmark on the left, the test-phase chip on the right.
+/// Slim top bar: wordmark on the left, optional actions on the right.
+///
+/// Scaffold grows the bar by the status-bar inset on top of [preferredSize],
+/// so the SafeArea below paints the brand surface behind the notch and keeps
+/// the row itself clear of it.
 class WalikiBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
   final bool back;
   final List<Widget> actions;
 
-  const WalikiBar({super.key, this.title, this.back = false, this.actions = const []});
+  const WalikiBar({
+    super.key,
+    this.title,
+    this.back = false,
+    this.actions = const [],
+  });
+
+  static const double barHeight = 54;
 
   @override
-  Size get preferredSize => const Size.fromHeight(54);
+  Size get preferredSize => const Size.fromHeight(barHeight);
+
+  /// Dark status-bar icons: the bar is white, so the system defaults
+  /// (light icons) would be invisible on it.
+  static const SystemUiOverlayStyle overlay = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    systemNavigationBarColor: kSurface,
+    systemNavigationBarIconBrightness: Brightness.dark,
+  );
 
   @override
-  Widget build(BuildContext context) => Container(
-        height: 54,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: const BoxDecoration(
-          color: kSurface,
-          border: Border(bottom: BorderSide(color: kLine)),
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+    value: overlay,
+    child: Container(
+      decoration: const BoxDecoration(
+        color: kSurface,
+        border: Border(bottom: BorderSide(color: kLine)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: barHeight,
+          child: Row(
+            children: [
+              if (back)
+                IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    size: 18,
+                    color: kInk,
+                  ),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                )
+              else
+                const SizedBox(width: 18),
+              if (title == null) ...[
+                Container(
+                  width: 9,
+                  height: 9,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: kBrand,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  'waliki',
+                  style: wk(
+                    size: 19,
+                    weight: 800,
+                    color: kBrandInk,
+                    tracking: -0.03,
+                  ),
+                ),
+              ] else
+                Text(title!, style: wk(size: 17, weight: 700, tracking: -0.02)),
+              const Spacer(),
+              ...actions,
+              const SizedBox(width: 8),
+            ],
+          ),
         ),
-        child: Row(
-          children: [
-            if (back)
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: kInk),
-                onPressed: () => Navigator.of(context).maybePop(),
-              )
-            else
-              const SizedBox(width: 10),
-            if (title == null) ...[
-              Container(
-                width: 9,
-                height: 9,
-                decoration: const BoxDecoration(
-                    shape: BoxShape.circle, color: kBrand),
-              ),
-              const SizedBox(width: 7),
-              Text('waliki', style: wk(size: 19, weight: 800, color: kBrandInk, tracking: -0.03)),
-            ] else
-              Text(title!, style: wk(size: 17, weight: 700, tracking: -0.02)),
-            const Spacer(),
-            ...actions,
-            const EnvChip(),
-            const SizedBox(width: 10),
-          ],
-        ),
-      );
+      ),
+    ),
+  );
 }
 
 class WCard extends StatelessWidget {
@@ -196,33 +219,47 @@ class WCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: double.infinity,
-        padding: padding,
-        decoration: BoxDecoration(
-          color: kSurface,
-          border: Border.all(color: border ?? kLine, width: border != null ? 1.5 : 1),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
-            BoxShadow(
-                color: Color(0x0D0E1A15), blurRadius: 2, offset: Offset(0, 1)),
-          ],
+    width: double.infinity,
+    padding: padding,
+    decoration: BoxDecoration(
+      color: kSurface,
+      border: Border.all(
+        color: border ?? kLine,
+        width: border != null ? 1.5 : 1,
+      ),
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0D0E1A15),
+          blurRadius: 2,
+          offset: Offset(0, 1),
         ),
-        child: child,
-      );
+      ],
+    ),
+    child: child,
+  );
 }
 
 class WChip extends StatelessWidget {
   final String text;
   final Color bg;
   final Color fg;
-  const WChip(this.text, {super.key, this.bg = kBrandTint, this.fg = kBrandInk});
+  const WChip(
+    this.text, {
+    super.key,
+    this.bg = kBrandTint,
+    this.fg = kBrandInk,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-        child: Text(text, style: wk(size: 12, weight: 700, color: fg)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(text, style: wk(size: 12, weight: 700, color: fg)),
+  );
 }
 
 class PrimaryButton extends StatelessWidget {
@@ -230,25 +267,37 @@ class PrimaryButton extends StatelessWidget {
   final VoidCallback? onTap;
   final Color color;
   final Color fg;
-  const PrimaryButton(this.label,
-      {super.key, this.onTap, this.color = kBrand, this.fg = Colors.white});
+  const PrimaryButton(
+    this.label, {
+    super.key,
+    this.onTap,
+    this.color = kBrand,
+    this.fg = Colors.white,
+  });
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: double.infinity,
-        height: 54,
-        child: FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: fg,
-            disabledBackgroundColor: const Color(0xFFDBE2DD),
-            disabledForegroundColor: const Color(0xFF8B978F),
-            elevation: onTap == null ? 0 : 2,
-            shadowColor: color.withValues(alpha: 0.45),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-          onPressed: onTap,
-          child: Text(label, style: wk(size: 15.5, weight: 700, color: onTap == null ? const Color(0xFF8B978F) : fg)),
+    width: double.infinity,
+    height: 54,
+    child: FilledButton(
+      style: FilledButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: fg,
+        disabledBackgroundColor: const Color(0xFFDBE2DD),
+        disabledForegroundColor: const Color(0xFF8B978F),
+        elevation: onTap == null ? 0 : 2,
+        shadowColor: color.withValues(alpha: 0.45),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      onPressed: onTap,
+      child: Text(
+        label,
+        style: wk(
+          size: 15.5,
+          weight: 700,
+          color: onTap == null ? const Color(0xFF8B978F) : fg,
         ),
-      );
+      ),
+    ),
+  );
 }

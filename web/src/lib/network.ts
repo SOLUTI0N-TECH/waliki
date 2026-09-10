@@ -30,6 +30,6 @@ export const network = {
   token: ((env.VITE_TOKEN as string | undefined) ?? deployment.testUSDT) as `0x${string}`,
   tokenSymbol: (env.VITE_TOKEN_SYMBOL as string | undefined) ?? 'tUSDT',
   tokenDecimals: Number(env.VITE_TOKEN_DECIMALS ?? 6),
-  /// Testnet-only affordances (faucet button, "Fase de prueba" chip)
+  /// Testnet-only affordances (the faucet button on the payment page)
   isTestnet: (env.VITE_IS_TESTNET as string | undefined) !== 'false' && chainId === 84532,
 }
