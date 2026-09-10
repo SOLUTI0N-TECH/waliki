@@ -29,6 +29,8 @@ class _ConectarScreenState extends State<ConectarScreen> {
   String? _error;
   bool _busy = false;
   bool _waitingWallet = false;
+  bool _walletReady = false;
+  bool _walletFailed = false;
   Timer? _poll;
 
   @override
@@ -39,9 +41,10 @@ class _ConectarScreenState extends State<ConectarScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         try {
           await Wallet.instance.init(context);
-          if (mounted) setState(() {});
+          if (mounted) setState(() => _walletReady = true);
         } catch (_) {
           // no wallet support on this platform: the paste flow still works
+          if (mounted) setState(() => _walletFailed = true);
         }
       });
     }
@@ -124,7 +127,11 @@ class _ConectarScreenState extends State<ConectarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final walletReady = !kIsWeb && Wallet.instance.available;
+    // Show the button as soon as we know the platform supports it; it stays
+    // disabled for the second or two WalletConnect needs to start up, instead
+    // of the layout jumping from "paste an address" to a button.
+    final showWalletButton = !kIsWeb && !_walletFailed;
+    final walletUsable = _walletReady || Wallet.instance.available;
     return Scaffold(
       appBar: const WalikiBar(title: 'Conectar billetera', back: true),
       body: SafeArea(
@@ -155,10 +162,14 @@ class _ConectarScreenState extends State<ConectarScreen> {
                 style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
               ),
               const SizedBox(height: 22),
-              if (walletReady) ...[
+              if (showWalletButton) ...[
                 PrimaryButton(
-                  _waitingWallet ? 'Esperando tu billetera…' : 'Conectar billetera',
-                  onTap: _waitingWallet || _busy ? null : _conectarBilletera,
+                  _waitingWallet
+                      ? 'Esperando tu billetera…'
+                      : (walletUsable ? 'Conectar billetera' : 'Preparando…'),
+                  onTap: _waitingWallet || _busy || !walletUsable
+                      ? null
+                      : _conectarBilletera,
                 ),
                 if (_waitingWallet) ...[
                   const SizedBox(height: 10),
@@ -231,7 +242,7 @@ class _ConectarScreenState extends State<ConectarScreen> {
                 ),
               ],
               const SizedBox(height: 14),
-              if (walletReady)
+              if (showWalletButton)
                 SizedBox(
                   height: 48,
                   child: OutlinedButton(

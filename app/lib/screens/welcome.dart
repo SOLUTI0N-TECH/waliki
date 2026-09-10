@@ -1,18 +1,42 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../session.dart';
 import '../ui.dart';
+import '../wallet.dart';
 import 'cajero_setup.dart';
 import 'conectar.dart';
 
 /// First run: pick a role. The whole product splits in two here — the owner
 /// signs and administers, the cashier only charges and verifies.
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   final Session session;
   const WelcomeScreen({super.key, required this.session});
 
   @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Start WalletConnect here: by the time the owner reaches the connect
+    // screen it is already up, so the button is tappable on arrival.
+    if (!kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          await Wallet.instance.init(context);
+        } catch (_) {
+          // unsupported platform: the connect screen falls back on its own
+        }
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final session = widget.session;
     return Scaffold(
       appBar: const WalikiBar(),
       body: SafeArea(
