@@ -21,21 +21,16 @@ class _HistorialScreenState extends State<HistorialScreen> {
     _future = Chain.payments(merchantId: widget.merchantId);
   }
 
+  /// Pull to refresh; the builder below renders any failure on its own.
+  Future<void> _refresh() async {
+    setState(() => _future = Chain.payments(merchantId: widget.merchantId));
+    await _future.catchError((Object _) => <Payment>[]);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: WalikiBar(
-        title: 'Historial',
-        back: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, size: 20, color: kInkSoft),
-            onPressed: () => setState(
-              () => _future = Chain.payments(merchantId: widget.merchantId),
-            ),
-          ),
-        ],
-      ),
+      appBar: WalikiBar(title: 'Historial', back: true),
       body: SafeArea(
         child: Column(
           children: [
@@ -52,96 +47,102 @@ class _HistorialScreenState extends State<HistorialScreen> {
               ),
             ),
             Expanded(
-              child: FutureBuilder<List<Payment>>(
-                future: _future,
-                builder: (context, snap) {
-                  if (snap.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'Sin conexión con la cadena\n${snap.error}',
-                          textAlign: TextAlign.center,
-                          style: wk(size: 13, weight: 500, color: kInkSoft),
-                        ),
-                      ),
-                    );
-                  }
-                  if (!snap.hasData) {
-                    return const HistorialSkeleton();
-                  }
-                  final list = snap.data!.reversed.toList();
-                  if (list.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'Todavía no hay ventas',
-                        style: wk(size: 14, weight: 500, color: kInkSoft),
-                      ),
-                    );
-                  }
-                  final total = list.fold<BigInt>(
-                    BigInt.zero,
-                    (a, p) => a + p.amount,
-                  );
-                  return ListView(
-                    padding: const EdgeInsets.all(20),
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: kBrandTint,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Text(
-                          '${list.length} ventas · ${fmtUsdt(total)} tUSDT',
-                          style: wk(
-                            size: 14,
-                            weight: 700,
-                            color: kBrandInk,
-                            tabular: true,
+              child: RefreshIndicator(
+                onRefresh: _refresh,
+                color: kBrand,
+                child: FutureBuilder<List<Payment>>(
+                  future: _future,
+                  builder: (context, snap) {
+                    if (snap.hasError) {
+                      return ScrollableCenter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            'Sin conexión con la cadena\nDesliza hacia abajo para reintentar',
+                            textAlign: TextAlign.center,
+                            style: wk(size: 13, weight: 500, color: kInkSoft),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      for (final p in list) ...[
-                        WCard(
+                      );
+                    }
+                    if (!snap.hasData) {
+                      return const HistorialSkeleton();
+                    }
+                    final list = snap.data!.reversed.toList();
+                    if (list.isEmpty) {
+                      return ScrollableCenter(
+                        child: Text(
+                          'Todavía no hay ventas',
+                          style: wk(size: 14, weight: 500, color: kInkSoft),
+                        ),
+                      );
+                    }
+                    final total = list.fold<BigInt>(
+                      BigInt.zero,
+                      (a, p) => a + p.amount,
+                    );
+                    return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(20),
+                      children: [
+                        Container(
                           padding: const EdgeInsets.all(14),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${fmtUsdt(p.amount)} tUSDT',
-                                      style: wk(
-                                        size: 15.5,
-                                        weight: 700,
-                                        tabular: true,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      'de ${short(p.payer)} · bloque ${p.block}',
-                                      style: wk(
-                                        size: 11,
-                                        weight: 500,
-                                        color: kInkSoft,
-                                        mono: true,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const WChip('Verificada'),
-                            ],
+                          decoration: BoxDecoration(
+                            color: kBrandTint,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            '${list.length} ventas · ${fmtUsdt(total)} tUSDT',
+                            style: wk(
+                              size: 14,
+                              weight: 700,
+                              color: kBrandInk,
+                              tabular: true,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 10),
+                        for (final p in list) ...[
+                          WCard(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${fmtUsdt(p.amount)} tUSDT',
+                                        style: wk(
+                                          size: 15.5,
+                                          weight: 700,
+                                          tabular: true,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'de ${short(p.payer)} · bloque ${p.block}',
+                                        style: wk(
+                                          size: 11,
+                                          weight: 500,
+                                          color: kInkSoft,
+                                          mono: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const WChip('Verificada'),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
                       ],
-                    ],
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ],

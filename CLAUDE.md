@@ -21,6 +21,9 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
 - **Todo el código de Waliki vive en este repo** (`C:\Yo\SolutionTech\waliki`).
 - Secretos (`.env`, claves privadas) **nunca** se commitean (ya en `.gitignore`); jamás pedir la
   clave privada por chat — el usuario la pega él mismo en `contracts/.env`.
+- **Nada de nombres propios del equipo ni del evento en el producto** (regla del fundador,
+  09/09/2026): ni en la app, ni en la web, ni en los mockups. Los ejemplos de comercio y de
+  cajero son genericos. Unica excepcion: lo que el propio usuario escriba al registrarse.
 - El usuario pide análisis/decisión **antes** de implementar; no adelantarse a crear código sin
   pedido claro. Las preguntas se responden sin editar archivos; ofrecer la edición y esperar el sí.
 

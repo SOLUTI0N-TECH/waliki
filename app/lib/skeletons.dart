@@ -108,7 +108,9 @@ class HomeSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Shimmer(
-    child: Padding(
+    // Scrollable so a RefreshIndicator can still be pulled while it shows.
+    child: SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,7 +157,7 @@ class MisComerciosSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => Shimmer(
     child: ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: 3,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) => const SkBox(height: 132, radius: 20),
@@ -171,7 +173,7 @@ class HistorialSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => Shimmer(
     child: ListView(
       padding: const EdgeInsets.all(20),
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
         const SkBox(height: 46),
         const SizedBox(height: 10),
@@ -193,7 +195,7 @@ class ReportesSkeleton extends StatelessWidget {
   Widget build(BuildContext context) => Shimmer(
     child: ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
         Row(
           children: [

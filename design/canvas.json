@@ -13,7 +13,7 @@
     { "file": "Puntaje.dc.html", "x": 2240, "y": 1030, "w": 390, "h": 844, "title": "T · Puntaje y adelanto" }
   ],
   "annotations": [
-    { "id": "fase-1", "x": 0, "y": -160, "w": 460, "text": "FASE 1 — LA CAJA (funcional en el demo del Buildathon)\nFlujo: PIN del cajero → Inicio → Cobrar → QR → Pantalla Verde → Historial.\nEl cliente paga en la página web que abre el QR (no necesita la app)." },
+    { "id": "fase-1", "x": 0, "y": -160, "w": 460, "text": "FASE 1 — LA CAJA (funcional en el demo)\nFlujo: PIN del cajero → Inicio → Cobrar → QR → Pantalla Verde → Historial.\nEl cliente paga en la página web que abre el QR (no necesita la app)." },
     { "id": "fase-2", "x": 0, "y": 880, "w": 400, "text": "FASE 2 — MODO FÁCIL (mockup navegable)\nBilletera propia sin frase semilla + compra de saldo con QR bancario o tarjeta vía rampas asociadas." },
     { "id": "fase-3", "x": 1120, "y": 880, "w": 400, "text": "FASE 3 — COMERCIO (mockup)\nTienda del negocio + delivery con pago dividido on-chain: el repartidor cobra al instante al confirmar la entrega." },
     { "id": "transversal", "x": 2240, "y": 880, "w": 380, "text": "TRANSVERSAL (mockup)\nPuntaje sobre ventas verificadas → adelanto de ventas con repago automático." },

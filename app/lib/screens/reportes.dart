@@ -68,6 +68,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
     _future = Chain.paymentsWithTime(merchantId: widget.merchantId);
   }
 
+  /// Pull to refresh; the builder below renders any failure on its own.
+  Future<void> _refresh() async {
+    setState(_reload);
+    await _future.catchError((Object _) => <Payment>[]);
+  }
+
   double get _rate {
     final v = double.tryParse(widget.session.rate.replaceAll(',', '.'));
     return (v != null && v > 0) ? v : 14.0;
@@ -127,63 +133,58 @@ class _ReportesScreenState extends State<ReportesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: WalikiBar(
-        title: 'Reportes',
-        back: true,
-        actions: [
-          IconButton(
-            tooltip: 'Actualizar',
-            icon: const Icon(Icons.refresh_rounded, size: 20, color: kInkSoft),
-            onPressed: () => setState(_reload),
-          ),
-        ],
-      ),
+      appBar: WalikiBar(title: 'Reportes', back: true),
       body: SafeArea(
-        child: FutureBuilder<List<Payment>>(
-          future: _future,
-          builder: (context, snap) {
-            if (snap.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(28),
-                  child: Text(
-                    'Sin conexión con la cadena\n${snap.error}',
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          color: kBrand,
+          child: FutureBuilder<List<Payment>>(
+            future: _future,
+            builder: (context, snap) {
+              if (snap.hasError) {
+                return ScrollableCenter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Text(
+                      'Sin conexión con la cadena\nDesliza hacia abajo para reintentar',
+                      textAlign: TextAlign.center,
+                      style: wk(size: 13, weight: 500, color: kInkSoft),
+                    ),
+                  ),
+                );
+              }
+              if (!snap.hasData) {
+                return const ReportesSkeleton();
+              }
+              final all = snap.data!;
+              final rows = _filter(all);
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                children: [
+                  _filters(),
+                  const SizedBox(height: 16),
+                  _kpis(rows),
+                  const SizedBox(height: 18),
+                  _chart(all),
+                  const SizedBox(height: 18),
+                  _exportCard(rows),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Cada cifra sale de los eventos del contrato en Base Sepolia. '
+                    'Nadie —ni Waliki— puede editarlas.',
                     textAlign: TextAlign.center,
-                    style: wk(size: 13, weight: 500, color: kInkSoft),
+                    style: wk(
+                      size: 11.5,
+                      weight: 500,
+                      color: kInkSoft,
+                      height: 1.5,
+                    ),
                   ),
-                ),
+                ],
               );
-            }
-            if (!snap.hasData) {
-              return const ReportesSkeleton();
-            }
-            final all = snap.data!;
-            final rows = _filter(all);
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-              children: [
-                _filters(),
-                const SizedBox(height: 16),
-                _kpis(rows),
-                const SizedBox(height: 18),
-                _chart(all),
-                const SizedBox(height: 18),
-                _exportCard(rows),
-                const SizedBox(height: 14),
-                Text(
-                  'Cada cifra sale de los eventos del contrato en Base Sepolia. '
-                  'Nadie —ni Waliki— puede editarlas.',
-                  textAlign: TextAlign.center,
-                  style: wk(
-                    size: 11.5,
-                    weight: 500,
-                    color: kInkSoft,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            );
-          },
+            },
+          ),
         ),
       ),
     );

@@ -210,6 +210,24 @@ class WalikiBar extends StatelessWidget implements PreferredSizeWidget {
   );
 }
 
+/// Centres a short message while staying scrollable: a RefreshIndicator only
+/// reacts to a scrollable child, so empty and error states need one too.
+class ScrollableCenter extends StatelessWidget {
+  final Widget child;
+  const ScrollableCenter({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+        child: Center(child: child),
+      ),
+    ),
+  );
+}
+
 class WCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;

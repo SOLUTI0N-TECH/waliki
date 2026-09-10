@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,11 +29,11 @@ class _ConectarScreenState extends State<ConectarScreen> {
   bool _waitingWallet = false;
   bool _walletReady = false;
   bool _walletFailed = false;
-  Timer? _poll;
 
   @override
   void initState() {
     super.initState();
+    Wallet.instance.connection.addListener(_onWalletConnection);
     if (!kIsWeb) {
       // Warm the modal up so the first tap is instant
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -52,9 +50,16 @@ class _ConectarScreenState extends State<ConectarScreen> {
 
   @override
   void dispose() {
-    _poll?.cancel();
+    Wallet.instance.connection.removeListener(_onWalletConnection);
     _ctrl.dispose();
     super.dispose();
+  }
+
+  /// AppKit reports the session the moment it exists, before its sheet has
+  /// finished closing — so the owner moves on without waiting for animations.
+  void _onWalletConnection() {
+    final address = Wallet.instance.connection.value;
+    if (address != null && mounted) _finish(address);
   }
 
   bool get _valid => RegExp(r'^0x[0-9a-fA-F]{40}$').hasMatch(_ctrl.text.trim());
@@ -77,7 +82,7 @@ class _ConectarScreenState extends State<ConectarScreen> {
     }
   }
 
-  /// Opens the wallet chooser and waits for a session to appear.
+  /// Opens the wallet chooser and waits for the sheet to close.
   Future<void> _conectarBilletera() async {
     setState(() {
       _error = null;
@@ -85,11 +90,12 @@ class _ConectarScreenState extends State<ConectarScreen> {
     });
     // A session can outlive the app's own: "Desconectar" used to clear only
     // Waliki's side, and WalletConnect also restores itself on relaunch. Drop
-    // it first so the chooser always comes up and the poll below can only see
-    // an address the user just approved.
+    // it first so the chooser always comes up.
     await Wallet.instance.disconnect();
     if (!mounted) return;
     try {
+      // AppKit awaits its own bottom sheet, so this returns once the sheet is
+      // gone — approved or dismissed.
       await Wallet.instance.openModal(context);
     } catch (e) {
       if (mounted) {
@@ -102,32 +108,19 @@ class _ConectarScreenState extends State<ConectarScreen> {
       }
       return;
     }
-    // The modal reports its result asynchronously; watch for the address.
-    var waited = Duration.zero;
-    const tick = Duration(milliseconds: 600);
-    _poll = Timer.periodic(tick, (t) {
-      if (!mounted) return t.cancel();
-      final addr = Wallet.instance.address;
-      if (addr != null) {
-        t.cancel();
-        _finish(addr);
-        return;
-      }
-      // Nothing came back. Release the button instead of leaving it stuck on
-      // "Esperando…": either the sheet is gone (dismissed, or the wallet never
-      // came back to us) or the wallet simply never answered.
-      waited += tick;
-      final dismissed =
-          waited > const Duration(seconds: 2) && !Wallet.instance.isModalOpen;
-      if (dismissed || waited >= const Duration(minutes: 3)) {
-        t.cancel();
-        setState(() => _waitingWallet = false);
-      }
-    });
+    if (!mounted) return;
+    final address = Wallet.instance.address;
+    if (address != null) {
+      _finish(address);
+      return;
+    }
+    // Closed with no session: hand the button back immediately instead of
+    // waiting on a timer to notice.
+    setState(() => _waitingWallet = false);
   }
 
   Future<void> _finish(String address) async {
-    _poll?.cancel();
+    if (_busy) return;
     setState(() => _busy = true);
     final s = widget.session;
     s.role = Role.duenio;

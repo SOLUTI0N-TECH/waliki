@@ -33,6 +33,12 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
     _future = Chain.merchantsOf(widget.session.ownerAddress ?? '');
   }
 
+  /// Pull to refresh; the builder below renders any failure on its own.
+  Future<void> _refresh() async {
+    setState(_reload);
+    await _future.catchError((Object _) => <Merchant>[]);
+  }
+
   Future<void> _crear() async {
     final created = await Navigator.of(context).push<int>(
       MaterialPageRoute(
@@ -73,11 +79,6 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
         title: 'Mis comercios',
         actions: [
           IconButton(
-            tooltip: 'Actualizar',
-            icon: const Icon(Icons.refresh_rounded, size: 20, color: kInkSoft),
-            onPressed: () => setState(_reload),
-          ),
-          IconButton(
             tooltip: 'Desconectar',
             icon: const Icon(Icons.logout_rounded, size: 19, color: kInkSoft),
             onPressed: _salir,
@@ -115,51 +116,56 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
               ),
             ),
             Expanded(
-              child: FutureBuilder<List<Merchant>>(
-                future: _future,
-                builder: (context, snap) {
-                  if (snap.hasError) {
-                    return _Message(
-                      icon: Icons.cloud_off_rounded,
-                      title: 'Sin conexión con la cadena',
-                      body: '${snap.error}',
-                    );
-                  }
-                  if (!snap.hasData) {
-                    return const MisComerciosSkeleton();
-                  }
-                  final list = snap.data!;
-                  if (list.isEmpty) {
-                    return _Message(
-                      icon: Icons.storefront_outlined,
-                      title: 'Todavía no tienes comercios',
-                      body:
-                          'Crea el primero: es una sola firma y tu negocio queda '
-                          'registrado en la blockchain, con tu dirección de cobro candada.',
-                    );
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                    itemCount: list.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (context, i) {
-                      final m = list[i];
-                      return _MerchantCard(
-                        merchant: m,
-                        onOpen: () => _abrir(m.id),
-                        onLink: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => VincularCajaScreen(
-                              session: widget.session,
-                              merchant: m,
+              child: RefreshIndicator(
+                onRefresh: _refresh,
+                color: kBrand,
+                child: FutureBuilder<List<Merchant>>(
+                  future: _future,
+                  builder: (context, snap) {
+                    if (snap.hasError) {
+                      return _Message(
+                        icon: Icons.cloud_off_rounded,
+                        title: 'Sin conexión con la cadena',
+                        body: '${snap.error}',
+                      );
+                    }
+                    if (!snap.hasData) {
+                      return const MisComerciosSkeleton();
+                    }
+                    final list = snap.data!;
+                    if (list.isEmpty) {
+                      return _Message(
+                        icon: Icons.storefront_outlined,
+                        title: 'Todavía no tienes comercios',
+                        body:
+                            'Crea el primero: es una sola firma y tu negocio queda '
+                            'registrado en la blockchain, con tu dirección de cobro candada.',
+                      );
+                    }
+                    return ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                      itemCount: list.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 12),
+                      itemBuilder: (context, i) {
+                        final m = list[i];
+                        return _MerchantCard(
+                          merchant: m,
+                          onOpen: () => _abrir(m.id),
+                          onLink: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => VincularCajaScreen(
+                                session: widget.session,
+                                merchant: m,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  );
-                },
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ),
             Padding(

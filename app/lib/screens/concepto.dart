@@ -8,7 +8,7 @@ import '../ui.dart';
 void _concepto(BuildContext context, String fase) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text('Concepto ($fase) — se construye después del Buildathon'),
+      content: Text('Concepto ($fase) — se construye en la siguiente fase'),
     ),
   );
 }

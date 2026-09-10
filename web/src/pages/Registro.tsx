@@ -94,7 +94,7 @@ export default function Registro() {
         <input
           id="nombre"
           className="field"
-          placeholder="Ej. Café Natalia"
+          placeholder="Como lo conocen tus clientes"
           value={name}
           maxLength={48}
           onChange={(e) => setName(e.target.value)}

@@ -35,6 +35,11 @@ class Rpc {
         'params': params,
       }),
     );
+    if (res.statusCode != 200) {
+      // Rate limits answer 429 with an HTML body: fail with something legible
+      // instead of letting jsonDecode throw a FormatException.
+      throw Exception('RPC HTTP ${res.statusCode}');
+    }
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['error'] != null) {
       throw Exception(body['error']['message'] ?? 'RPC error');
@@ -195,6 +200,28 @@ class Chain {
     ]) as List<dynamic>;
   }
 
+  /// One window, retried with a growing pause.
+  ///
+  /// The history spans dozens of windows and they go out in bursts, so the
+  /// public RPC rate-limits one now and then. Without this a single refused
+  /// window would throw away every payment the others found.
+  static Future<List<dynamic>> _getLogsRetrying(
+    List<dynamic> topics,
+    BigInt from,
+    BigInt to,
+  ) async {
+    Object error = Exception('RPC sin respuesta');
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await _getLogs(topics, from, to);
+      } catch (e) {
+        error = e;
+        await Future<void>.delayed(Duration(milliseconds: 300 * (attempt + 1)));
+      }
+    }
+    throw error;
+  }
+
   /// Scans in windows of <=9,900 blocks to respect the public RPC limit.
   static Future<List<dynamic>> _scanLogs(
     List<dynamic> topics, {
@@ -220,7 +247,8 @@ class Chain {
     for (var i = 0; i < windows.length; i += 5) {
       final end = (i + 5 > windows.length) ? windows.length : i + 5;
       final results = await Future.wait([
-        for (final w in windows.sublist(i, end)) _getLogs(topics, w[0], w[1]),
+        for (final w in windows.sublist(i, end))
+          _getLogsRetrying(topics, w[0], w[1]),
       ]);
       for (final r in results) {
         all.addAll(r);
