@@ -28,7 +28,9 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
 1. **Pasarela de cobro** (alcance del Buildathon): la pasarela es **100% web** — el QR es una URL
    (a futuro, enlace universal). **La app Flutter es la vitrina y SE MUESTRA EN EL BUILDATHON**:
    modo caja funcional (solo lecturas JSON-RPC: Bs→QR→verde por evento→historial; SIN firma dentro
-   de la app) + secciones de Modo Fácil/Comercio/puntaje como **mockups navegables**. El pago del
+   de la app) + secciones de Modo Fácil/Comercio/puntaje como **mockups navegables** — ocultos
+   por defecto desde el 09/09/2026 (`WalikiConfig.showVision = false`, decisión del fundador:
+   "no hacen nada"); **poner el flag en `true` antes del pitch** si se van a recorrer. El pago del
    cliente es siempre por la página web del QR; firma en app y push llegan post-evento.
 2. **Modo Fácil**: billetera propia sin frase semilla (ERC-4337/passkey) + compra de saldo con QR
    bancario o tarjeta vía rampas asociadas + KYC. **Pendiente ratificar** (v4 §6.3): NO emitir
