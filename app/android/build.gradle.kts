@@ -23,6 +23,17 @@ subprojects {
 // is evaluated, afterEvaluate can no longer be registered.
 subprojects {
     afterEvaluate {
+        // coinbase_wallet_sdk 1.0.10 declares consumerProguardFiles
+        // "consumer-rules.pro" but does not ship the file, so the build dies on
+        // mergeDebugConsumerProguardFiles. Create an empty one in place — this
+        // keeps the workaround in the repo instead of every machine.
+        if (name == "coinbase_wallet_sdk") {
+            val rules = file("consumer-rules.pro")
+            if (!rules.exists()) {
+                rules.writeText("# created by waliki: upstream package omits this file
+")
+            }
+        }
         extensions.findByName("android")?.let { ext ->
             val android = ext as com.android.build.gradle.BaseExtension
             android.compileSdkVersion(36)
