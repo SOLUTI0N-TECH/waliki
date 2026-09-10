@@ -5,6 +5,14 @@ import 'package:reown_appkit/reown_appkit.dart';
 
 import 'config.dart';
 
+/// Root navigator key.
+///
+/// AppKit stores the BuildContext it is built with and, once that context
+/// unmounts, `modalContext` returns null and `openModalView` logs an error and
+/// returns without opening anything. Screens come and go — the root navigator
+/// does not — so the modal is built on this one instead.
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 /// Real wallet connection over WalletConnect (Reown AppKit).
 ///
 /// Mobile only: the package ships Android/iOS implementations, so on web this
@@ -39,7 +47,7 @@ class Wallet {
     if (_modal != null) return;
     if (WalikiConfig.reownProjectId.isEmpty) return;
     final modal = ReownAppKitModal(
-      context: context,
+      context: rootNavigatorKey.currentContext ?? context,
       projectId: WalikiConfig.reownProjectId,
       metadata: const PairingMetadata(
         name: 'Waliki',
@@ -97,7 +105,18 @@ class Wallet {
 
   Future<void> openModal(BuildContext context) async {
     await init(context);
-    await _modal?.openModalView();
+    final modal = _modal;
+    if (modal == null) throw StateError('La billetera no esta disponible aqui');
+    if (modal.modalContext == null) {
+      // AppKit would just log and return, leaving the caller waiting forever.
+      throw StateError(
+        'La pantalla de la billetera se perdio, reinicia la app',
+      );
+    }
+    // disconnect() clears AppKit's selected chain, so re-pin it here: from the
+    // second connection onwards it would otherwise be null again.
+    await _pinChain();
+    await modal.openModalView();
   }
 
   /// Drops the WalletConnect session, so the next connect shows the wallet

@@ -5,6 +5,7 @@ import 'screens/mis_comercios.dart';
 import 'screens/welcome.dart';
 import 'session.dart';
 import 'ui.dart';
+import 'wallet.dart';
 
 void main() => runApp(const WalikiApp());
 
@@ -13,6 +14,7 @@ class WalikiApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+    navigatorKey: rootNavigatorKey,
     title: 'Waliki',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(

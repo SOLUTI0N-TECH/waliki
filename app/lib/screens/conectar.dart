@@ -95,7 +95,9 @@ class _ConectarScreenState extends State<ConectarScreen> {
       if (mounted) {
         setState(() {
           _waitingWallet = false;
-          _error = 'No se pudo abrir la billetera: $e';
+          _error = e is StateError
+              ? e.message
+              : 'No se pudo abrir la billetera: $e';
         });
       }
       return;
