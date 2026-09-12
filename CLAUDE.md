@@ -47,6 +47,11 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
 ## Alcance del MVP Fase 1 (Buildathon) — SIN BACKEND
 - **Sin backend**: la cadena es la base de datos; el navegador lee los eventos por RPC (viem).
   WhatsApp, servicio de tasa P2P y PDF se difieren a la fase comercial post-evento.
+  ⚠️ **Excepción explícita (11/09/2026, pedido del usuario)**: `backend/` es un **prototipo
+  aparte** que NO forma parte de la pasarela ni del demo. Es la exploración del camino inverso
+  (QR bancario en Bs → liquidación automática en tUSDT) y **sí custodia fondos**: su wallet paga
+  los tUSDT. Es una rampa — territorio de la Fase 2 y sus condiciones legales, no de la Fase 1.
+  Nada del riel no-custodial depende de él.
 - **Riel único: modo contrato.** El pagador ejecuta `pay()` desde su billetera. El "modo
   transferencia simple" desde exchange se difiere (necesita servidor: reservas de monto único +
   tolerancia a la comisión que el exchange descuenta).
@@ -82,6 +87,10 @@ waliki/
                #   saleId bytes32; paidAmount evita doble pago; CEI; SafeERC20)
                # test/waliki.test.ts (7 tests) · scripts/deploy.ts → deployments/<red>.json (SÍ se commitea)
   web/         # /caja (cobro Bs→QR→verde) y /pay/:saleId (página de pago del cliente)
+  backend/     # NestJS (prototipo, custodial, fuera del alcance del Buildathon):
+               #   POST /qr crea el QR fiat en la Yesca API; GET /qr/:id/status consulta y,
+               #   si está "completed", transfiere tUSDT desde la wallet del backend.
+               #   Store en memoria (Map), sin DB. Ver backend/README.md
   design/brand/ # LOGO OFICIAL (09/09/2026): logo-source.jpg + symbol.png y lockup.png
                #   con fondo recortado. Paleta muestreada del archivo: violeta #6D2FF8,
                #   indigo #3D32F1, azul #0072EF, cian #03BAE5, teal #33D0D4, navy #031740.

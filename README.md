@@ -43,6 +43,8 @@ waliki/
                # (registerMerchant / setPayoutAddress / pay + evento PaymentReceived)
                # test/ (7 tests) · scripts/deploy.ts → deployments/<red>.json
   web/         # /caja (cobro Bs→QR→verde) y /pay/:saleId (página de pago del cliente)
+  backend/     # (experimento, fuera del riel no-custodial) NestJS: QR bancario en Bs
+               # vía la Yesca API + liquidación automática en tUSDT
   packages/    # (futuro) ABI + tipos compartidos
   docs/        # PASO-0.md (checklist de cuentas) y siguientes
 ```
