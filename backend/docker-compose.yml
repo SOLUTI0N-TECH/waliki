@@ -1,0 +1,27 @@
+services:
+
+  waliki-backend:
+    image: node:22-slim
+    container_name: waliki-backend
+    hostname: waliki-backend
+    restart: unless-stopped
+    volumes:
+      - ./:/app
+    working_dir: /app
+    environment:
+      - TZ=America/La_Paz
+    command: >
+      sh -c "npm run build && npm run start:prod"
+    #ports:
+    #  - "${PORT}:${PORT}"
+    expose:
+      - "${PORT}"
+    networks:
+      - server-network
+      - pg-network
+  
+networks: 
+  server-network:
+    external: true
+  pg-network:
+    external: true
