@@ -5,6 +5,14 @@ import { useBlockNumber, usePublicClient, useReadContract, useWatchContractEvent
 import { formatUnits, parseUnits } from 'viem'
 import { walikiRouterAbi } from '../contracts/waliki'
 import { network } from '../lib/network'
+import {
+  ageLabel,
+  fetchQuote,
+  isStale,
+  RATE_SOURCE,
+  storedQuote,
+  type RateQuote,
+} from '../lib/rate'
 
 const CHAIN_ID = network.chainId
 const ROUTER = network.router
@@ -72,7 +80,15 @@ function playGreenSound() {
   }
 }
 
-type Sale = { id: `0x${string}`; amountUnits: bigint; bs: number; rate: number; exp: number }
+type Sale = {
+  id: `0x${string}`
+  amountUnits: bigint
+  // Absent when the sale was priced straight in USDT: no Bs figure, no
+  // quote behind it, and so nothing that can go stale.
+  bs?: number
+  rate?: number
+  exp?: number
+}
 type PaidInfo = { payer?: string; txHash?: string; block?: bigint; late: boolean }
 type HistItem = { sale: Sale; status: 'pagada' | 'vencida'; txHash?: string; late: boolean }
 type View = { mode: 'entry' } | { mode: 'qr'; sale: Sale } | { mode: 'paid'; sale: Sale; info: PaidInfo }
@@ -103,7 +119,47 @@ export default function Caja() {
       return '14.00'
     }
   })
-  const [bsInput, setBsInput] = useState('')
+  const [amountInput, setAmountInput] = useState('')
+  const [usdt, setUsdt] = useState(() => {
+    try {
+      return localStorage.getItem('waliki.usdtMode') === '1'
+    } catch {
+      return false
+    }
+  })
+  const [quote, setQuote] = useState<RateQuote | null>(() => storedQuote())
+  // Turns false the moment the owner types their own rate, so a refresh
+  // never overwrites a deliberate override.
+  const [rateAuto, setRateAuto] = useState(() => {
+    try {
+      return localStorage.getItem('waliki.rateAuto') !== '0'
+    } catch {
+      return true
+    }
+  })
+
+  // The stored quote is already on screen; this only refreshes behind it.
+  useEffect(() => {
+    if (!isStale(storedQuote())) return
+    let alive = true
+    void fetchQuote().then((q) => {
+      if (alive && q) setQuote(q)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!quote || !rateAuto) return
+    const v = quote.buy.toFixed(2)
+    setRate(v)
+    try {
+      localStorage.setItem('waliki.rate', v)
+    } catch {
+      // persistence is optional
+    }
+  }, [quote, rateAuto])
   const [view, setView] = useState<View>({ mode: 'entry' })
   const [history, setHistory] = useState<HistItem[]>([])
 
@@ -136,7 +192,7 @@ export default function Caja() {
   function markPaid(sale: Sale, info: Omit<PaidInfo, 'late'>) {
     setView((current) => {
       if (current.mode !== 'qr' || current.sale.id !== sale.id) return current
-      const late = Math.floor(Date.now() / 1000) > sale.exp
+      const late = sale.exp ? Math.floor(Date.now() / 1000) > sale.exp : false
       playGreenSound()
       setHistory((h) => [{ sale, status: 'pagada' as const, txHash: info.txHash, late }, ...h].slice(0, 8))
       return { mode: 'paid', sale, info: { ...info, late } }
@@ -204,25 +260,54 @@ export default function Caja() {
   }, [activeSale, paidRead.data, publicClient])
 
   function cobrar() {
-    const bs = parseLocalNumber(bsInput)
+    const typed = parseLocalNumber(amountInput)
     const r = parseLocalNumber(rate)
-    if (!Number.isFinite(bs) || !Number.isFinite(r)) return
+    if (!Number.isFinite(typed) || typed <= 0) return
+    if (!usdt && (!Number.isFinite(r) || r <= 0)) return
+    const amountUnits = parseUnits((usdt ? typed : typed / r).toFixed(DECIMALS), DECIMALS)
+    if (amountUnits <= 0n) return
     armSound()
-    const sale: Sale = {
-      id: randomSaleId(),
-      amountUnits: parseUnits((bs / r).toFixed(DECIMALS), DECIMALS),
-      bs,
-      rate: r,
-      exp: Math.floor(Date.now() / 1000) + QUOTE_MINUTES * 60,
-    }
+    const sale: Sale = usdt
+      ? { id: randomSaleId(), amountUnits }
+      : {
+          id: randomSaleId(),
+          amountUnits,
+          bs: typed,
+          rate: r,
+          // Only a Bs sale carries a quote, so only a Bs sale gets a deadline.
+          exp: Math.floor(Date.now() / 1000) + QUOTE_MINUTES * 60,
+        }
     setView({ mode: 'qr', sale })
+  }
+
+  function switchCurrency(next: boolean) {
+    // Bs 100 is not $100: clear rather than reinterpret the figure.
+    setUsdt(next)
+    setAmountInput('')
+    try {
+      localStorage.setItem('waliki.usdtMode', next ? '1' : '0')
+    } catch {
+      // persistence is optional
+    }
+  }
+
+  async function applyMarketRate() {
+    // Asking explicitly also puts the rate back on automatic.
+    setRateAuto(true)
+    try {
+      localStorage.setItem('waliki.rateAuto', '1')
+    } catch {
+      // persistence is optional
+    }
+    const q = await fetchQuote()
+    if (q) setQuote(q)
   }
 
   function cancelSale(expiredSale?: Sale) {
     if (expiredSale) {
       setHistory((h) => [{ sale: expiredSale, status: 'vencida' as const, late: false }, ...h].slice(0, 8))
     }
-    setBsInput('')
+    setAmountInput('')
     setView({ mode: 'entry' })
   }
 
@@ -273,7 +358,11 @@ export default function Caja() {
       <div className="success-panel">
         <div className="success-check">✓</div>
         <h1>¡Pago recibido!</h1>
-        <div className="success-amount">Bs {nf.format(sale.bs)}</div>
+        <div className="success-amount">
+          {sale.bs != null
+            ? `Bs ${nf.format(sale.bs)}`
+            : `${fmtUsdt(sale.amountUnits)} ${SYMBOL}`}
+        </div>
         <div className="success-sub">
           {fmtUsdt(sale.amountUnits)} {SYMBOL} · venta {short(sale.id)}
         </div>
@@ -307,16 +396,30 @@ export default function Caja() {
 
   if (view.mode === 'qr') {
     const { sale } = view
-    const expired = now >= sale.exp
-    const remaining = Math.max(0, sale.exp - now)
-    const url = `${window.location.origin}/pay/${sale.id}?m=${String(MERCHANT_ID)}&a=${String(sale.amountUnits)}&bs=${sale.bs}&r=${sale.rate.toFixed(2)}&exp=${sale.exp}`
+    const expired = sale.exp != null && now >= sale.exp
+    const remaining = sale.exp != null ? Math.max(0, sale.exp - now) : null
+    // The link carries only what the sale actually has: a USDT price
+    // travels without a rate and without a deadline.
+    const params = new URLSearchParams({
+      m: String(MERCHANT_ID),
+      a: String(sale.amountUnits),
+    })
+    if (sale.bs != null && sale.rate != null) {
+      params.set('bs', String(sale.bs))
+      params.set('r', sale.rate.toFixed(2))
+    }
+    if (sale.exp != null) params.set('exp', String(sale.exp))
+    const url = `${window.location.origin}/pay/${sale.id}?${params.toString()}`
     const isLocalhost = /localhost|127\.0\.0\.1/.test(window.location.origin)
     return (
       <div className="card center-col">
         <div className="merchant-row">
           <div>
             <div className="muted small">Cobrando</div>
-            <div className="merchant-name">Bs {nf.format(sale.bs)} · {fmtUsdt(sale.amountUnits)} {SYMBOL}</div>
+            <div className="merchant-name">
+              {sale.bs != null ? `Bs ${nf.format(sale.bs)} · ` : null}
+              {fmtUsdt(sale.amountUnits)} {SYMBOL}
+            </div>
           </div>
           <span className={connectionOk ? 'chip chip-green' : 'chip chip-amber'}>
             {connectionOk ? '● conexión estable' : '● reconectando…'}
@@ -339,13 +442,13 @@ export default function Caja() {
         <div className="wallet-row">
           <span className="pulse-dot"></span>
           <span style={{ flexGrow: 1 }}>Esperando el pago…</span>
-          {!expired ? (
+          {expired ? (
+            <span className="chip chip-red">cotización vencida</span>
+          ) : remaining !== null ? (
             <span className="chip chip-amber">
               vence en {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, '0')}
             </span>
-          ) : (
-            <span className="chip chip-red">cotización vencida</span>
-          )}
+          ) : null}
         </div>
         <div className="muted small center">
           El verde lo dispara el evento en la blockchain — no una captura del cliente.
@@ -363,12 +466,15 @@ export default function Caja() {
     )
   }
 
-  const bsValue = parseLocalNumber(bsInput)
+  const typedValue = parseLocalNumber(amountInput)
   const rateValue = parseLocalNumber(rate)
-  const preview =
-    Number.isFinite(bsValue) && Number.isFinite(rateValue)
-      ? parseUnits((bsValue / rateValue).toFixed(DECIMALS), DECIMALS)
-      : null
+  const previewOk =
+    Number.isFinite(typedValue) &&
+    typedValue > 0 &&
+    (usdt || (Number.isFinite(rateValue) && rateValue > 0))
+  const preview = previewOk
+    ? parseUnits((usdt ? typedValue : typedValue / rateValue).toFixed(DECIMALS), DECIMALS)
+    : null
 
   return (
     <div className="card">
@@ -382,25 +488,54 @@ export default function Caja() {
         </span>
       </div>
 
-      <div className="wallet-row">
-        <span className="muted small">Tasa del comercio (Bs por {SYMBOL})</span>
-        <input
-          className="rate-input"
-          inputMode="decimal"
-          value={rate}
-          onChange={(e) => {
-            setRate(e.target.value)
-            try {
-              localStorage.setItem('waliki.rate', e.target.value)
-            } catch {
-              // persistence is optional
-            }
-          }}
-        />
+      <div className="seg" role="group" aria-label="Moneda del cobro">
+        <button type="button" aria-pressed={!usdt} onClick={() => switchCurrency(false)}>
+          Bs · Bolivianos
+        </button>
+        <button type="button" aria-pressed={usdt} onClick={() => switchCurrency(true)}>
+          $ · {SYMBOL}
+        </button>
       </div>
 
+      {!usdt && (
+        <>
+          <div className="wallet-row">
+            <span className="muted small">Tasa del comercio (Bs por {SYMBOL})</span>
+            <input
+              className="rate-input"
+              inputMode="decimal"
+              value={rate}
+              onChange={(e) => {
+                // Typing here is an override: the live quote stops writing
+                // over the owner's number.
+                setRate(e.target.value)
+                setRateAuto(false)
+                try {
+                  localStorage.setItem('waliki.rate', e.target.value)
+                  localStorage.setItem('waliki.rateAuto', '0')
+                } catch {
+                  // persistence is optional
+                }
+              }}
+            />
+          </div>
+          <div className="rate-note muted small">
+            <span>
+              {quote
+                ? rateAuto
+                  ? `${RATE_SOURCE} · ${ageLabel(quote)}`
+                  : `a mano · ${RATE_SOURCE} marca ${quote.buy.toFixed(2)}`
+                : 'Tasa fijada a mano'}
+            </span>
+            <button type="button" onClick={applyMarketRate}>
+              {rateAuto ? 'actualizar' : 'usar la del mercado'}
+            </button>
+          </div>
+        </>
+      )}
+
       <label className="muted small" htmlFor="bs">
-        Monto en bolivianos
+        {usdt ? `Monto en ${SYMBOL}` : 'Monto en bolivianos'}
       </label>
       <input
         id="bs"
@@ -408,14 +543,18 @@ export default function Caja() {
         inputMode="decimal"
         placeholder="0,00"
         autoFocus
-        value={bsInput}
-        onChange={(e) => setBsInput(e.target.value)}
+        value={amountInput}
+        onChange={(e) => setAmountInput(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') cobrar()
         }}
       />
       {preview !== null && (
-        <div className="muted center">≈ {fmtUsdt(preview)} {SYMBOL} · cotización congelada por {QUOTE_MINUTES} min</div>
+        <div className="muted center">
+          {usdt
+            ? `Se cobra ${fmtUsdt(preview)} ${SYMBOL}`
+            : `≈ ${fmtUsdt(preview)} ${SYMBOL} · cotización congelada por ${QUOTE_MINUTES} min`}
+        </div>
       )}
 
       <button className="btn" disabled={preview === null} onClick={cobrar}>
@@ -428,7 +567,11 @@ export default function Caja() {
           {history.map((h) => (
             <div className="hist-row" key={h.sale.id}>
               <span className="addr">{short(h.sale.id)}</span>
-              <span>Bs {nf.format(h.sale.bs)}</span>
+              <span>
+                {h.sale.bs != null
+                  ? `Bs ${nf.format(h.sale.bs)}`
+                  : `${fmtUsdt(h.sale.amountUnits)} ${SYMBOL}`}
+              </span>
               {h.status === 'pagada' ? (
                 <span className="chip chip-green">{h.late ? 'pagada (fuera de plazo)' : 'pagada'}</span>
               ) : (

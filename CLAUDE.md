@@ -50,7 +50,15 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
 - **Riel único: modo contrato.** El pagador ejecuta `pay()` desde su billetera. El "modo
   transferencia simple" desde exchange se difiere (necesita servidor: reservas de monto único +
   tolerancia a la comisión que el exchange descuenta).
-- **Tasa Bs/USDT manual** (la fija el dueño), con cotización que **vence** (~15 min). Congelada en el QR.
+- **Tasa Bs/USDT en vivo** desde `https://paralelo.bo/api/v1/rate` (campo `buy`, CC-BY-4.0 → hay
+  que acreditar la fuente en pantalla). **Cacheada, no consultada por cobro**: el endpoint publica
+  `Cache-Control: max-age=60` y limita a 60 req/min, así que se sirve la guardada al instante y se
+  refresca detrás (TTL 5 min, `app/lib/rate.dart` y `web/src/lib/rate.ts`). El dueño puede
+  sobrescribirla a mano y eso apaga el auto (`session.rateAuto`). Cotización que **vence** (~15 min),
+  congelada en el QR.
+- **La caja cobra en Bs o en USDT** (switch arriba del monto, `session.usdtMode`). En USDT el monto
+  tecleado ES el cobro: el enlace del QR viaja **sin `bs`, sin `r` y sin `exp`** — no hay cotización
+  que pueda vencer. `Pay.tsx` ya condicionaba esos parámetros, así que la pasarela lo soporta sola.
 - Extras del MVP: registro on-chain con **candado de la dirección de cobro** · red forzada a Base
   Sepolia en la página de pago · faucet de tUSDT integrado · trazabilidad (hash/bloque/
   confirmaciones/explorador) · semáforo de conexión + estado "pendiente de verificación" · kit demo

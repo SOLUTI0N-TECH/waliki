@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../chain.dart';
 import '../config.dart';
+import '../rate.dart';
 import '../session.dart';
 import '../ui.dart';
 
@@ -15,9 +16,15 @@ enum _Phase { entry, qr, paid }
 class _Sale {
   final String id;
   final BigInt amountUnits;
-  final double bs;
-  final double rate;
-  final int exp;
+
+  /// Null when the sale was priced straight in USDT: there is no Bs figure
+  /// and no quote sitting behind it.
+  final double? bs;
+  final double? rate;
+
+  /// Null for USDT prices. The countdown exists because a Bs quote goes
+  /// stale; 8,69 USDT is 8,69 USDT an hour later, so nothing expires.
+  final int? exp;
   const _Sale(this.id, this.amountUnits, this.bs, this.rate, this.exp);
 }
 
@@ -44,10 +51,61 @@ class _CobrarScreenState extends State<CobrarScreen> {
   );
   _Sale? _sale;
   Payment? _payment;
+  late bool _usdt = widget.session.usdtMode;
+  RateQuote? _quote;
+  bool _rateLoading = false;
   bool _late = false;
   Timer? _clock;
   Timer? _poll;
   int _now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncRate();
+  }
+
+  /// Shows the stored quote at once, then refreshes behind it. A sale never
+  /// waits on the network.
+  Future<void> _syncRate() async {
+    final cached = await Rate.load();
+    if (!mounted) return;
+    if (cached != null) {
+      _applyQuote(cached);
+      setState(() => _quote = cached);
+    }
+    final fresh = await Rate.refresh();
+    if (!mounted || fresh == null) return;
+    _applyQuote(fresh);
+    setState(() => _quote = fresh);
+  }
+
+  /// Writes the market rate into the field — unless the owner has taken over,
+  /// in which case their number stands.
+  void _applyQuote(RateQuote q) {
+    if (!widget.session.rateAuto) return;
+    final v = q.buy.toStringAsFixed(2);
+    if (_rateCtrl.text == v) return;
+    _rateCtrl.text = v;
+    widget.session.rate = v;
+    widget.session.save();
+  }
+
+  /// Asking explicitly also puts the rate back on automatic.
+  Future<void> _refreshRate() async {
+    widget.session.rateAuto = true;
+    await widget.session.save();
+    if (!mounted) return;
+    setState(() => _rateLoading = true);
+    final q = await Rate.refresh(force: true);
+    if (!mounted) return;
+    final use = q ?? _quote;
+    if (use != null) _applyQuote(use);
+    setState(() {
+      _rateLoading = false;
+      if (q != null) _quote = q;
+    });
+  }
 
   @override
   void dispose() {
@@ -57,7 +115,7 @@ class _CobrarScreenState extends State<CobrarScreen> {
     super.dispose();
   }
 
-  double? get _bs {
+  double? get _typed {
     final v = double.tryParse(_amount.replaceAll(',', '.'));
     return (v != null && v > 0) ? v : null;
   }
@@ -65,6 +123,17 @@ class _CobrarScreenState extends State<CobrarScreen> {
   double? get _rate {
     final v = double.tryParse(_rateCtrl.text.replaceAll(',', '.'));
     return (v != null && v > 0) ? v : null;
+  }
+
+  /// What the customer will actually be charged on-chain, or null while the
+  /// entry is not usable. In USDT the typed figure is already the amount.
+  BigInt? _units(double? typed, double? rate) {
+    if (typed == null) return null;
+    if (!_usdt && rate == null) return null;
+    final units = BigInt.from(
+      (_usdt ? typed * 1e6 : typed / rate! * 1e6).round(),
+    );
+    return units > BigInt.zero ? units : null;
   }
 
   void _key(String k) {
@@ -82,21 +151,25 @@ class _CobrarScreenState extends State<CobrarScreen> {
   }
 
   void _cobrar() {
-    final bs = _bs;
+    final typed = _typed;
     final rate = _rate;
-    if (bs == null || rate == null) return;
+    final units = _units(typed, rate);
+    if (units == null) return;
     final rnd = Random.secure();
     final id =
         '0x${List.generate(32, (_) => rnd.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
-    final units = BigInt.from((bs / rate * 1e6).round());
-    final exp =
-        DateTime.now().millisecondsSinceEpoch ~/ 1000 +
-        WalikiConfig.quoteMinutes * 60;
-    _sale = _Sale(id, units, bs, rate, exp);
+    // Only a Bs sale carries a quote, so only a Bs sale gets a deadline.
+    final exp = _usdt
+        ? null
+        : DateTime.now().millisecondsSinceEpoch ~/ 1000 +
+              WalikiConfig.quoteMinutes * 60;
+    _sale = _Sale(id, units, _usdt ? null : typed, _usdt ? null : rate, exp);
     _phase = _Phase.qr;
-    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() => _now = DateTime.now().millisecondsSinceEpoch ~/ 1000);
-    });
+    if (exp != null) {
+      _clock = Timer.periodic(const Duration(seconds: 1), (_) {
+        setState(() => _now = DateTime.now().millisecondsSinceEpoch ~/ 1000);
+      });
+    }
     // Green by polling paidAmount — same double-road philosophy as the web caja
     _poll = Timer.periodic(const Duration(seconds: 3), (_) => _check());
     setState(() {});
@@ -108,7 +181,9 @@ class _CobrarScreenState extends State<CobrarScreen> {
     try {
       final paid = await Chain.paidAmount(widget.merchantId, sale.id);
       if (paid > BigInt.zero && mounted && _phase == _Phase.qr) {
-        _late = DateTime.now().millisecondsSinceEpoch ~/ 1000 > sale.exp;
+        final exp = sale.exp;
+        _late =
+            exp != null && DateTime.now().millisecondsSinceEpoch ~/ 1000 > exp;
         _phase = _Phase.paid;
         _poll?.cancel();
         HapticFeedback.heavyImpact();
@@ -157,59 +232,76 @@ class _CobrarScreenState extends State<CobrarScreen> {
   }
 
   Widget _buildEntry() {
-    final bs = _bs;
-    final rate = _rate;
-    final usdt = (bs != null && rate != null)
-        ? BigInt.from((bs / rate * 1e6).round())
-        : null;
+    final units = _units(_typed, _rate);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration: BoxDecoration(
-              color: kSurface,
-              border: Border.all(color: kLine),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Tasa  Bs',
-                  style: wk(size: 13, weight: 500, color: kInkSoft),
-                ),
-                SizedBox(
-                  width: 62,
-                  child: TextField(
-                    controller: _rateCtrl,
-                    textAlign: TextAlign.center,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    style: wk(size: 14.5, weight: 700, tabular: true),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      border: InputBorder.none,
-                    ),
-                    onChanged: (v) {
-                      widget.session.rate = v;
-                      widget.session.save();
-                      setState(() {});
-                    },
-                  ),
-                ),
-                Text(
-                  '= 1 USDT',
-                  style: wk(size: 13, weight: 500, color: kInkSoft),
-                ),
-              ],
-            ),
+          _CurrencySwitch(
+            usdt: _usdt,
+            onChanged: (v) {
+              widget.session.usdtMode = v;
+              widget.session.save();
+              // Bs 100 is not $100: clear rather than reinterpret the figure.
+              setState(() {
+                _usdt = v;
+                _amount = '';
+              });
+            },
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 16),
+          if (!_usdt) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: kSurface,
+                border: Border.all(color: kLine),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Tasa  Bs',
+                    style: wk(size: 13, weight: 500, color: kInkSoft),
+                  ),
+                  SizedBox(
+                    width: 62,
+                    child: TextField(
+                      controller: _rateCtrl,
+                      textAlign: TextAlign.center,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      style: wk(size: 14.5, weight: 700, tabular: true),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                      ),
+                      onChanged: (v) {
+                        // Typing here is an override: the live quote stops
+                        // writing over the owner's number.
+                        widget.session.rate = v;
+                        widget.session.rateAuto = false;
+                        widget.session.save();
+                        setState(() {});
+                      },
+                    ),
+                  ),
+                  Text(
+                    '= 1 USDT',
+                    style: wk(size: 13, weight: 500, color: kInkSoft),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 7),
+            _rateNote(),
+            const SizedBox(height: 14),
+          ] else
+            const SizedBox(height: 10),
           Text(
-            'MONTO EN BOLIVIANOS',
+            _usdt ? 'MONTO EN USDT' : 'MONTO EN BOLIVIANOS',
             style: wk(size: 11, weight: 700, color: kInkSoft, tracking: 0.04),
           ),
           const SizedBox(height: 8),
@@ -220,7 +312,7 @@ class _CobrarScreenState extends State<CobrarScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 9),
                 child: Text(
-                  'Bs ',
+                  _usdt ? '\$ ' : 'Bs ',
                   style: wk(size: 26, weight: 600, color: kInkSoft),
                 ),
               ),
@@ -229,7 +321,9 @@ class _CobrarScreenState extends State<CobrarScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            usdt != null ? '≈ ${fmtUsdt(usdt)} tUSDT' : ' ',
+            // Priced in USDT there is no second figure: what was typed is what
+            // is charged.
+            (!_usdt && units != null) ? '≈ ${fmtUsdt(units)} tUSDT' : ' ',
             style: wk(size: 16.5, weight: 700, color: kBrandInk, tabular: true),
           ),
           const Spacer(),
@@ -237,29 +331,86 @@ class _CobrarScreenState extends State<CobrarScreen> {
           const SizedBox(height: 16),
           PrimaryButton(
             'Cobrar — generar QR',
-            onTap: usdt != null ? _cobrar : null,
+            onTap: units != null ? _cobrar : null,
           ),
         ],
       ),
     );
   }
 
+  /// Credits the source — the data is CC-BY — and shows how old the quote is,
+  /// so the cashier can tell at a glance whether to refresh it.
+  Widget _rateNote() {
+    final q = _quote;
+    final auto = widget.session.rateAuto;
+    if (_rateLoading) {
+      return Text(
+        'Consultando ${Rate.source}…',
+        style: wk(size: 11, weight: 500, color: kInkSoft),
+      );
+    }
+    if (q == null) {
+      return Text(
+        'Tasa fijada a mano',
+        style: wk(size: 11, weight: 500, color: kInkSoft),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
+            auto
+                ? '${Rate.source} · ${q.ageLabel}'
+                : 'a mano · ${Rate.source} marca ${q.buy.toStringAsFixed(2)}',
+            overflow: TextOverflow.ellipsis,
+            style: wk(size: 11, weight: 500, color: kInkSoft),
+          ),
+        ),
+        InkWell(
+          onTap: _refreshRate,
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            child: Text(
+              auto ? 'actualizar' : 'usar la del mercado',
+              style: wk(size: 11, weight: 700, color: kBrand),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildQr() {
     final sale = _sale!;
-    final expired = _now >= sale.exp;
-    final left = (sale.exp - _now).clamp(0, 1 << 31);
-    final bsParam = sale.bs.toStringAsFixed(2);
-    final url =
-        '${WalikiConfig.payBaseUrl}/pay/${sale.id}?m=${widget.merchantId}&a=${sale.amountUnits}&bs=$bsParam&r=${sale.rate.toStringAsFixed(2)}&exp=${sale.exp}';
+    final exp = sale.exp;
+    final expired = exp != null && _now >= exp;
+    final left = exp == null ? 0 : (exp - _now).clamp(0, 1 << 31);
+    final bs = sale.bs;
+    final rate = sale.rate;
+    // The link carries only what the sale actually has: a USDT price travels
+    // without a rate and without a deadline.
+    final url = StringBuffer(
+      '${WalikiConfig.payBaseUrl}/pay/${sale.id}'
+      '?m=${widget.merchantId}&a=${sale.amountUnits}',
+    );
+    if (bs != null && rate != null) {
+      url.write('&bs=${bs.toStringAsFixed(2)}&r=${rate.toStringAsFixed(2)}');
+    }
+    if (exp != null) url.write('&exp=$exp');
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         children: [
-          Text('Bs ${fmtNum(sale.bs)}', style: wkNum(size: 34)),
-          Text(
-            '${fmtUsdt(sale.amountUnits)} tUSDT',
-            style: wk(size: 15, weight: 700, color: kBrandInk, tabular: true),
-          ),
+          if (bs != null) ...[
+            Text('Bs ${fmtNum(bs)}', style: wkNum(size: 34)),
+            Text(
+              '${fmtUsdt(sale.amountUnits)} tUSDT',
+              style: wk(size: 15, weight: 700, color: kBrandInk, tabular: true),
+            ),
+          ] else
+            Text('${fmtUsdt(sale.amountUnits)} tUSDT', style: wkNum(size: 34)),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(14),
@@ -275,13 +426,13 @@ class _CobrarScreenState extends State<CobrarScreen> {
                 ),
               ],
             ),
-            child: QrImageView(data: url, size: 232),
+            child: QrImageView(data: url.toString(), size: 232),
           ),
           const SizedBox(height: 12),
           Text(
-            'El cliente escanea con su cámara — se abre la página de pago',
+            'El cliente escanea con su cámara',
             textAlign: TextAlign.center,
-            style: wk(size: 12.5, weight: 500, color: kInkSoft, height: 1.45),
+            style: wk(size: 12.5, weight: 500, color: kInkSoft),
           ),
           const SizedBox(height: 14),
           WCard(
@@ -296,50 +447,26 @@ class _CobrarScreenState extends State<CobrarScreen> {
                     style: wk(size: 14.5, weight: 700),
                   ),
                 ),
-                expired
-                    ? const WChip(
-                        'cotización vencida',
-                        bg: kDangerTint,
-                        fg: kDanger,
-                      )
-                    : WChip(
-                        'vence en ${left ~/ 60}:${(left % 60).toString().padLeft(2, '0')}',
-                        bg: kAmberTint,
-                        fg: kAmber,
-                      ),
+                if (expired)
+                  const WChip(
+                    'cotización vencida',
+                    bg: kDangerTint,
+                    fg: kDanger,
+                  )
+                else if (exp != null)
+                  WChip(
+                    'vence en ${left ~/ 60}:${(left % 60).toString().padLeft(2, '0')}',
+                    bg: kAmberTint,
+                    fg: kAmber,
+                  ),
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            'El verde lo dispara el evento en la blockchain — no una captura.',
-            textAlign: TextAlign.center,
-            style: wk(size: 11.5, weight: 500, color: kInkSoft, height: 1.45),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Text(
-                  'QR → ${WalikiConfig.payBaseUrl}',
-                  overflow: TextOverflow.ellipsis,
-                  style: wk(size: 11, weight: 500, color: kInkSoft, mono: true),
-                ),
-              ),
-              IconButton(
-                iconSize: 15,
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.edit_outlined, color: kInkSoft),
-                onPressed: _editBaseUrl,
-              ),
-            ],
-          ),
           if (expired) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 14),
             PrimaryButton('Generar un QR nuevo', onTap: _reset),
-            const SizedBox(height: 10),
           ],
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -430,11 +557,15 @@ class _CobrarScreenState extends State<CobrarScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Bs ${fmtNum(sale.bs)}',
+                    sale.bs != null
+                        ? 'Bs ${fmtNum(sale.bs!)}'
+                        : '${fmtUsdt(sale.amountUnits)} tUSDT',
                     style: wkNum(size: 46, color: Colors.white),
                   ),
                   Text(
-                    '${fmtUsdt(sale.amountUnits)} tUSDT · venta ${short(sale.id)}',
+                    sale.bs != null
+                        ? '${fmtUsdt(sale.amountUnits)} tUSDT · venta ${short(sale.id)}'
+                        : 'venta ${short(sale.id)}',
                     style: wk(
                       size: 13.5,
                       weight: 500,
@@ -508,39 +639,74 @@ class _CobrarScreenState extends State<CobrarScreen> {
       ),
     ],
   );
+}
 
-  Future<void> _editBaseUrl() async {
-    final ctrl = TextEditingController(text: WalikiConfig.payBaseUrl);
-    final value = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'URL de la página de pago',
-          style: wk(size: 17, weight: 700),
-        ),
-        content: TextField(
-          controller: ctrl,
-          style: wk(size: 14, weight: 500),
-          decoration: const InputDecoration(
-            hintText: 'http://192.168.x.x:5173 o https://waliki.vercel.app',
+/// Bs or USDT. Which one the register prices in changes what the cashier
+/// types, so it sits above the amount instead of hiding in a menu.
+class _CurrencySwitch extends StatelessWidget {
+  final bool usdt;
+  final ValueChanged<bool> onChanged;
+  const _CurrencySwitch({required this.usdt, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: kSurface2,
+      border: Border.all(color: kLine),
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Row(
+      children: [
+        _half('Bs', 'Bolivianos', !usdt, () => onChanged(false)),
+        _half('\$', 'USDT', usdt, () => onChanged(true)),
+      ],
+    ),
+  );
+
+  Widget _half(String symbol, String label, bool on, VoidCallback tap) =>
+      Expanded(
+        child: GestureDetector(
+          onTap: tap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: on ? kSurface : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: on
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x140B1220),
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  symbol,
+                  style: wk(
+                    size: 15,
+                    weight: 800,
+                    color: on ? kBrandInk : kInkSoft,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: wk(size: 13, weight: 600, color: on ? kInk : kInkSoft),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(ctrl.text.trim()),
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-    if (value != null && value.isNotEmpty) {
-      setState(() => WalikiConfig.payBaseUrl = value);
-    }
-  }
+      );
 }
 
 class _PulseDot extends StatefulWidget {

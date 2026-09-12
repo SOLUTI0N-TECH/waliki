@@ -11,6 +11,8 @@ class Session {
   static const _kMerchant = 'waliki.merchantId';
   static const _kPin = 'waliki.pin';
   static const _kRate = 'waliki.rate';
+  static const _kRateAuto = 'waliki.rateAuto';
+  static const _kUsdtMode = 'waliki.usdtMode';
 
   Role? role;
   String? ownerAddress;
@@ -18,12 +20,21 @@ class Session {
   String? pin;
   String rate;
 
+  /// Turns false the moment the owner types their own rate, so a background
+  /// refresh never overwrites a deliberate override.
+  bool rateAuto;
+
+  /// The register prices straight in USDT instead of Bs.
+  bool usdtMode;
+
   Session({
     this.role,
     this.ownerAddress,
     this.merchantId,
     this.pin,
     this.rate = '14.00',
+    this.rateAuto = true,
+    this.usdtMode = false,
   });
 
   bool get isReady => role != null && merchantId != null;
@@ -42,6 +53,8 @@ class Session {
       merchantId: p.getInt(_kMerchant),
       pin: p.getString(_kPin),
       rate: p.getString(_kRate) ?? '14.00',
+      rateAuto: p.getBool(_kRateAuto) ?? true,
+      usdtMode: p.getBool(_kUsdtMode) ?? false,
     );
   }
 
@@ -68,6 +81,8 @@ class Session {
       await p.remove(_kPin);
     }
     await p.setString(_kRate, rate);
+    await p.setBool(_kRateAuto, rateAuto);
+    await p.setBool(_kUsdtMode, usdtMode);
   }
 
   Future<void> clear() async {

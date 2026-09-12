@@ -98,9 +98,12 @@ class _ReportesScreenState extends State<ReportesScreen> {
     }).toList();
   }
 
+  /// The chain stores USDT, never bolivianos, so the Bs column is a
+  /// reconstruction at the rate showing today — not the price the customer
+  /// was actually charged. The header says so.
   Future<void> _exportCsv(List<Payment> rows) async {
     final buf = StringBuffer(
-      'fecha,hora,venta,monto_usdt,monto_bs,pagador,bloque,transaccion\n',
+      'fecha,hora,venta,monto_usdt,monto_bs_estimado,pagador,bloque,transaccion\n',
     );
     for (final p in rows.reversed) {
       final d = p.date;
@@ -245,7 +248,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
               Text('${fmtNum(total)} tUSDT', style: wkNum(size: 34)),
               const SizedBox(height: 3),
               Text(
-                '≈ Bs ${fmtNum(total * _rate)}  ·  al cambio de ${_rate.toStringAsFixed(2)}',
+                '≈ Bs ${fmtNum(total * _rate)}  ·  al cambio de hoy, ${_rate.toStringAsFixed(2)}',
                 style: wk(size: 12.5, weight: 500, color: kInkSoft),
               ),
             ],
