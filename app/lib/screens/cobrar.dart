@@ -559,8 +559,9 @@ class _CurrencySwitch extends StatelessWidget {
     ),
     child: Row(
       children: [
-        _half('Bs', 'Bolivianos', !usdt, () => onChanged(false)),
+        // USDT first: it is the mode the register opens in.
         _half('\$', 'USDT', usdt, () => onChanged(true)),
+        _half('Bs', 'Bolivianos', !usdt, () => onChanged(false)),
       ],
     ),
   );
