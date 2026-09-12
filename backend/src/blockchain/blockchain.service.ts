@@ -20,6 +20,33 @@ function reason(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/// Turns a router revert into something the shop owner can act on. Only the
+/// revoked-cashier case has a fix on their side; everything else is passed
+/// through so nothing gets swallowed.
+function explainPayRevert(
+  error: unknown,
+  merchantId: number,
+  saleId: string,
+): string {
+  const raw = reason(error);
+  if (/cajero no autorizado/i.test(raw)) {
+    // The cashier is the first 20 bytes of the sale id
+    const cashier = saleId.slice(0, 42);
+    return (
+      `La caja ${cashier} del comercio ${merchantId} está dada de baja, así que ` +
+      'esta venta no se puede liquidar. Vuelve a habilitarla en la app del dueño ' +
+      'y el cobro se libera solo en el siguiente intento.'
+    );
+  }
+  if (/venta ya pagada/i.test(raw)) {
+    return `La venta ${saleId} ya figura pagada en el contrato.`;
+  }
+  if (/comercio inexistente/i.test(raw)) {
+    return `El comercio ${merchantId} no existe en el router configurado.`;
+  }
+  return `El router rechazó el pago: ${raw}`;
+}
+
 /// Owns the backend's own wallet and moves tUSDT out of it. The private key
 /// lives here and never leaves: no getter, no log, no response ever exposes it.
 @Injectable()
@@ -149,6 +176,16 @@ export class BlockchainService {
           MAX_UINT256,
         );
         await approval.wait(WAIT_CONFIRMATIONS, WAIT_TIMEOUT_MS);
+      }
+
+      // The customer already handed over the bolivianos, so a revert here is
+      // not a failed payment: it is money the bank has and the shop does not.
+      // Simulating first turns it into a sentence the owner can act on, and
+      // the next poll settles the sale once they do.
+      try {
+        await this.router.pay.staticCall(id, saleId, units);
+      } catch (error) {
+        throw new Error(explainPayRevert(error, merchantId, saleId));
       }
 
       const tx = await this.router.pay(id, saleId, units);
