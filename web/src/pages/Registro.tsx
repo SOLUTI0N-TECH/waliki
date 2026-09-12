@@ -118,7 +118,7 @@ export default function Registro() {
           </button>
         ) : wrongNetwork ? (
           <button className="btn" onClick={() => switchNetwork(walikiNetwork)}>
-            Cambiar a Base Sepolia
+            Cambiar de red
           </button>
         ) : (
           <button

@@ -310,7 +310,7 @@ export default function Pay() {
               chainId: CHAIN_ID,
             })
           }}>
-            {busyFaucet ? 'Reclamando…' : `Te faltan ${SYMBOL} — obtener 100 del faucet de prueba`}
+            {busyFaucet ? 'Reclamando…' : `Te faltan ${SYMBOL} — obtener 100`}
           </button>
         )}
 

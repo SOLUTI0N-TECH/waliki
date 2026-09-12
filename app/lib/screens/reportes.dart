@@ -174,7 +174,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
                   _exportCard(rows),
                   const SizedBox(height: 14),
                   Text(
-                    'Cada cifra sale de los eventos del contrato en Base Sepolia. '
+                    'Cada cifra sale de los eventos del contrato en la blockchain. '
                     'Nadie —ni Waliki— puede editarlas.',
                     textAlign: TextAlign.center,
                     style: wk(

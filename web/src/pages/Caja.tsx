@@ -13,10 +13,10 @@ const EXPLORER = network.explorer
 const SYMBOL = network.tokenSymbol
 const DECIMALS = network.tokenDecimals
 const LOG_RANGE = 9900n // public RPCs cap eth_getLogs at 10,000 blocks
-const DEFAULT_MERCHANT_ID = (import.meta.env.VITE_MERCHANT_ID as string | undefined) ?? '1'
 const CAJA_PIN = (import.meta.env.VITE_CAJA_PIN as string | undefined) ?? '1234'
 const QUOTE_MINUTES = 15
 const ZERO_SALE = ('0x' + '0'.repeat(64)) as `0x${string}`
+const ZERO_ADDR = ('0x' + '0'.repeat(40)) as `0x${string}`
 
 const nf = new Intl.NumberFormat('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -87,13 +87,24 @@ type HistItem = { sale: Sale; status: 'pagada' | 'vencida'; txHash?: string; lat
 type View = { mode: 'entry' } | { mode: 'qr'; sale: Sale } | { mode: 'paid'; sale: Sale; info: PaidInfo }
 
 export default function Caja() {
-  // Which shop this register charges for: ?m=<id> (from /registro), else the
-  // build default. Any merchant registered on-chain can open its own caja.
+  // Which shop this register charges for: ?m=<id> from the owner's own link,
+  // or typed at the gate. There is no fallback shop — a register can only be
+  // opened against one that is actually registered on-chain.
   const [search] = useSearchParams()
-  const MERCHANT_ID = useMemo(() => {
-    const m = search.get('m')
-    return m && /^\d+$/.test(m) && BigInt(m) > 0n ? BigInt(m) : BigInt(DEFAULT_MERCHANT_ID)
-  }, [search])
+  const [shopInput, setShopInput] = useState(() => {
+    const fromUrl = search.get('m')
+    if (fromUrl) return fromUrl
+    try {
+      return sessionStorage.getItem('waliki.cajaShop') ?? ''
+    } catch {
+      return ''
+    }
+  })
+  const merchantId = useMemo(() => {
+    const m = shopInput.trim()
+    return /^\d+$/.test(m) && BigInt(m) > 0n ? BigInt(m) : null
+  }, [shopInput])
+  const MERCHANT_ID = merchantId ?? 0n
 
   const [unlocked, setUnlocked] = useState(() => {
     try {
@@ -167,8 +178,15 @@ export default function Caja() {
     functionName: 'merchants',
     args: [MERCHANT_ID],
     chainId: CHAIN_ID,
+    query: { enabled: merchantId !== null },
   })
-  const merchantName = merchantRead.data ? merchantRead.data[2] : `Comercio #${String(MERCHANT_ID)}`
+  // An unregistered id reads back with a zero owner: that is the check that
+  // keeps a register from opening against a shop that does not exist.
+  const merchantExists = Boolean(merchantRead.data && merchantRead.data[0] !== ZERO_ADDR)
+  const merchantName =
+    merchantExists && merchantRead.data
+      ? merchantRead.data[2]
+      : `Comercio #${String(MERCHANT_ID)}`
 
   const activeSale = view.mode === 'qr' ? view.sale : null
   const publicClient = usePublicClient({ chainId: CHAIN_ID })
@@ -284,13 +302,31 @@ export default function Caja() {
     setView({ mode: 'entry' })
   }
 
-  if (!unlocked) {
+  if (!unlocked || merchantId === null) {
     return (
       <div className="card">
-        <h1>Caja</h1>
+        <h1>Abrir caja</h1>
         <p className="muted">
-          {merchantName} · el cajero solo necesita su PIN — nunca toca fondos ni llaves.
+          El cajero solo necesita el número del comercio y su PIN — nunca toca fondos ni llaves.
         </p>
+        <label className="muted small" htmlFor="shop">
+          Número de comercio
+        </label>
+        <input
+          id="shop"
+          className="caja-input"
+          inputMode="numeric"
+          autoFocus
+          value={shopInput}
+          onChange={(e) => setShopInput(e.target.value)}
+        />
+        {merchantId !== null && merchantRead.isLoading && (
+          <div className="muted center small">Buscando el comercio…</div>
+        )}
+        {merchantId !== null && !merchantRead.isLoading && !merchantExists && (
+          <div className="error-box">Ese comercio no está registrado.</div>
+        )}
+        {merchantExists && <div className="muted center">{merchantName}</div>}
         <input
           className="caja-input"
           type="password"
@@ -306,10 +342,12 @@ export default function Caja() {
         {pinError && <div className="error-box">PIN incorrecto</div>}
         <button
           className="btn"
+          disabled={!merchantExists}
           onClick={() => {
             if (pin === CAJA_PIN) {
               try {
                 sessionStorage.setItem('waliki.caja', '1')
+                sessionStorage.setItem('waliki.cajaShop', String(merchantId))
               } catch {
                 // session persistence is optional
               }

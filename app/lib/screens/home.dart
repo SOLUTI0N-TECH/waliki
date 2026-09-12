@@ -149,7 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Verificado en Base Sepolia',
+                      'Verificado en la blockchain',
                       style: wk(size: 12.5, weight: 500, color: kInkSoft),
                     ),
                     const SizedBox(height: 16),

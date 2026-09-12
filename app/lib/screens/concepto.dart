@@ -153,7 +153,7 @@ class ComercioScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _screen(
     'Concepto · Fase 3',
-    'Tienda Demo CBBA',
+    'Mi Tienda',
     'Pedidos con entrega · se paga igual que en caja',
     [
       GridView.count(
@@ -259,7 +259,7 @@ class PuntajeScreen extends StatelessWidget {
   @override
   Widget build(
     BuildContext context,
-  ) => _screen('Concepto', 'Puntaje comercial', 'Tienda Demo CBBA', [
+  ) => _screen('Concepto', 'Puntaje comercial', 'Mi Tienda', [
     Center(
       child: SizedBox(
         width: 160,
