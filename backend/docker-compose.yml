@@ -18,10 +18,7 @@ services:
       - "${PORT}"
     networks:
       - server-network
-      - pg-network
   
 networks: 
   server-network:
-    external: true
-  pg-network:
     external: true
