@@ -7,7 +7,7 @@ import '../skeletons.dart';
 import '../wallet.dart';
 import 'crear_comercio.dart';
 import 'home.dart';
-import 'vincular_caja.dart';
+import 'cajeros.dart';
 import 'welcome.dart';
 
 /// Owner panel: every shop registered by the connected address, read straight
@@ -155,7 +155,7 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
                           onOpen: () => _abrir(m.id),
                           onLink: () => Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => VincularCajaScreen(
+                              builder: (_) => CajerosScreen(
                                 session: widget.session,
                                 merchant: m,
                               ),
@@ -253,7 +253,7 @@ class _MerchantCard extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      'Vincular cajero',
+                      'Cajeros',
                       style: wk(size: 14, weight: 700, color: kBrandInk),
                     ),
                   ),

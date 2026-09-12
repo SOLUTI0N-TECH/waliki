@@ -95,7 +95,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 title: 'Soy cajero',
                 subtitle:
                     'Cobro y verifico pagos con el código que me dio el dueño.',
-                note: 'Sin billetera, solo un PIN',
+                note: 'Sin billetera ni gas',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => CajeroSetupScreen(session: session),

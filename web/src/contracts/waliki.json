@@ -404,6 +404,75 @@
           {
             "indexed": true,
             "internalType": "address",
+            "name": "cashier",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "string",
+            "name": "label",
+            "type": "string"
+          }
+        ],
+        "name": "CashierAdded",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "merchantId",
+            "type": "uint256"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "cashier",
+            "type": "address"
+          }
+        ],
+        "name": "CashierRemoved",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "merchantId",
+            "type": "uint256"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          }
+        ],
+        "name": "MerchantOwnershipTransferred",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "merchantId",
+            "type": "uint256"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
             "name": "owner",
             "type": "address"
           },
@@ -421,6 +490,31 @@
           }
         ],
         "name": "MerchantRegistered",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "uint256",
+            "name": "merchantId",
+            "type": "uint256"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "from",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "to",
+            "type": "address"
+          }
+        ],
+        "name": "OwnershipTransferStarted",
         "type": "event"
       },
       {
@@ -478,6 +572,98 @@
         ],
         "name": "PayoutAddressChanged",
         "type": "event"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "merchantId",
+            "type": "uint256"
+          }
+        ],
+        "name": "acceptMerchantOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "merchantId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "cashier",
+            "type": "address"
+          },
+          {
+            "internalType": "string",
+            "name": "label",
+            "type": "string"
+          }
+        ],
+        "name": "addCashier",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "merchantId",
+            "type": "uint256"
+          }
+        ],
+        "name": "cancelMerchantOwnershipTransfer",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bytes32",
+            "name": "saleId",
+            "type": "bytes32"
+          }
+        ],
+        "name": "cashierOf",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "name": "isCashier",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
       },
       {
         "inputs": [],
@@ -571,6 +757,25 @@
       {
         "inputs": [
           {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "name": "pendingOwner",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
             "internalType": "address",
             "name": "payout",
             "type": "address"
@@ -589,6 +794,24 @@
             "type": "uint256"
           }
         ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "merchantId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "cashier",
+            "type": "address"
+          }
+        ],
+        "name": "removeCashier",
+        "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
       },
@@ -622,6 +845,24 @@
         ],
         "stateMutability": "view",
         "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "merchantId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "newOwner",
+            "type": "address"
+          }
+        ],
+        "name": "transferMerchantOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
       }
     ]
   },
@@ -630,7 +871,7 @@
     "chainId": 84532,
     "deployer": "0x3ca0e1d199ef95c2074248613a34a17b90702440",
     "testUSDT": "0xc0934b34b2b1654ac5dc41b8a867e1227e03093d",
-    "walikiRouter": "0xd98869ebf0231ce1a56b145cb83db0ab2b1d382a",
-    "deployedAt": "2026-09-01T12:35:20.430Z"
+    "walikiRouter": "0x5b003974862aa4ad00e09dfcade43abde593bbdc",
+    "deployedAt": "2026-09-12T23:21:50.142Z"
   }
 }

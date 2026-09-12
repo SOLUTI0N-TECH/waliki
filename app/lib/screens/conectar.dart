@@ -116,6 +116,10 @@ class _ConectarScreenState extends State<ConectarScreen> {
     final s = widget.session;
     s.role = Role.duenio;
     s.ownerAddress = address.toLowerCase();
+    // The owner is a cashier of their own shops (registerMerchant signs them up),
+    // so this is the address their sales are issued under when they charge from
+    // this phone.
+    s.cashierAddress = s.ownerAddress;
     await s.save();
     if (!mounted) return;
     Navigator.of(context).pushReplacement(

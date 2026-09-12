@@ -368,3 +368,54 @@ class PrimaryButton extends StatelessWidget {
     );
   }
 }
+
+/// The four-digit keypad the register is unlocked with. Shared by the PIN gate
+/// and by the screen where a cashier chooses theirs.
+class Keypad extends StatelessWidget {
+  final void Function(String) onKey;
+  const Keypad({super.key, required this.onKey});
+
+  @override
+  Widget build(BuildContext context) {
+    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '<'];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: GridView.count(
+        crossAxisCount: 3,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.55,
+        children: [
+          for (final k in keys)
+            k.isEmpty
+                ? const SizedBox()
+                : Material(
+                    color: kSurface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: kLine),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => onKey(k),
+                      child: Center(
+                        child: k == '<'
+                            ? const Icon(
+                                Icons.backspace_outlined,
+                                color: kInkSoft,
+                                size: 22,
+                              )
+                            : Text(
+                                k,
+                                style: wk(size: 25, weight: 600, tabular: true),
+                              ),
+                      ),
+                    ),
+                  ),
+        ],
+      ),
+    );
+  }
+}

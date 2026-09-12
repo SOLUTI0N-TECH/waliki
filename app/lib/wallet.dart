@@ -1,8 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/widgets.dart';
 import 'package:reown_appkit/reown_appkit.dart';
 
+import 'abi.dart';
 import 'config.dart';
 
 /// Root navigator key.
@@ -145,15 +144,9 @@ class Wallet {
     connection.value = null;
   }
 
-  /// Sends registerMerchant(payout, name) from the connected wallet and
-  /// returns the transaction hash the wallet reports.
-  ///
-  /// Calldata is hand-encoded so the app keeps zero ABI dependencies:
-  ///   selector | payout (32B) | offset 0x40 (32B) | length (32B) | utf8 bytes
-  Future<String?> registerMerchant({
-    required String payout,
-    required String name,
-  }) async {
+  /// Sends a transaction to the router from the connected wallet and returns
+  /// the hash the wallet reports.
+  Future<String?> _sendToRouter(String data) async {
     final modal = _modal;
     if (modal == null || modal.session == null) {
       throw StateError('No hay billetera conectada');
@@ -161,7 +154,6 @@ class Wallet {
     final from = address;
     if (from == null) throw StateError('No hay dirección conectada');
 
-    final data = _encodeRegisterMerchant(payout: payout, name: name);
     final result = await modal.request(
       topic: modal.session!.topic,
       chainId: 'eip155:${WalikiConfig.chainId}',
@@ -179,22 +171,66 @@ class Wallet {
     );
     return result?.toString();
   }
+
+  /// registerMerchant(payout, name). Also registers the owner as a cashier of
+  /// their own shop, so they can charge from this same phone right away.
+  Future<String?> registerMerchant({
+    required String payout,
+    required String name,
+  }) async => _sendToRouter(encodeRegisterMerchant(payout: payout, name: name));
+
+  /// addCashier(merchantId, cashier, label). The cashier signs nothing: the
+  /// owner authorizes the address their app derived for that register.
+  Future<String?> addCashier({
+    required int merchantId,
+    required String cashier,
+    required String label,
+  }) async => _sendToRouter(
+    encodeAddCashier(merchantId: merchantId, cashier: cashier, label: label),
+  );
+
+  /// removeCashier(merchantId, cashier). Takes effect immediately: sales that
+  /// register issued and nobody paid yet stop being payable.
+  Future<String?> removeCashier({
+    required int merchantId,
+    required String cashier,
+  }) async => _sendToRouter(
+    encodeRemoveCashier(merchantId: merchantId, cashier: cashier),
+  );
 }
 
-/// keccak-256 selector of registerMerchant(address,string), precomputed with
-/// viem so the app needs no hashing library.
-const String _selRegisterMerchant = 'a6c8a384';
+// keccak-256 selectors, precomputed so the app needs no hashing library.
+// contracts/test/waliki.test.ts asserts every one of them against the
+// compiled contract; test/abi_test.dart pins the calldata these build.
+const String selRegisterMerchant = 'a6c8a384';
+const String selAddCashier = '7961ffdc';
+const String selRemoveCashier = 'ed164620';
 
-String _pad(String hexNoPrefix) => hexNoPrefix.padLeft(64, '0');
+/// Offset of the string argument, in bytes: it is the size of the head, so it
+/// is 0x40 with two head words and 0x60 with three. Getting this wrong does
+/// NOT revert -- the transaction lands and emits a garbled label.
+const String _offset2Words =
+    '0000000000000000000000000000000000000000000000000000000000000040';
+const String _offset3Words =
+    '0000000000000000000000000000000000000000000000000000000000000060';
 
-String _encodeRegisterMerchant({required String payout, required String name}) {
-  final addr = _pad(payout.replaceFirst('0x', '').toLowerCase());
-  const offset =
-      '0000000000000000000000000000000000000000000000000000000000000040';
-  final bytes = utf8.encode(name);
-  final len = _pad(bytes.length.toRadixString(16));
-  final body = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  // right-pad the string body to a whole 32-byte word
-  final padded = body.padRight(((body.length + 63) ~/ 64) * 64, '0');
-  return '0x$_selRegisterMerchant$addr$offset$len$padded';
-}
+/// selector | payout | offset 0x40 | length | utf8 bytes
+String encodeRegisterMerchant({required String payout, required String name}) =>
+    '0x$selRegisterMerchant'
+    '${abiWordHex(payout)}$_offset2Words${abiStringTail(name)}';
+
+/// selector | merchantId | cashier | offset 0x60 | length | utf8 bytes
+String encodeAddCashier({
+  required int merchantId,
+  required String cashier,
+  required String label,
+}) =>
+    '0x$selAddCashier'
+    '${abiWordInt(merchantId)}${abiWordHex(cashier)}'
+    '$_offset3Words${abiStringTail(label)}';
+
+/// selector | merchantId | cashier
+String encodeRemoveCashier({
+  required int merchantId,
+  required String cashier,
+}) => '0x$selRemoveCashier${abiWordInt(merchantId)}${abiWordHex(cashier)}';

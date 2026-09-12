@@ -34,10 +34,15 @@ function parseLocalNumber(raw: string): number {
   return Number.isFinite(n) && n > 0 ? n : NaN
 }
 
-function randomSaleId(): `0x${string}` {
-  const bytes = new Uint8Array(32)
-  crypto.getRandomValues(bytes)
-  return ('0x' + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')) as `0x${string}`
+/// A sale id is `cashier (20 bytes) || 12 random bytes`. The router reads the
+/// cashier out of it and rejects the payment unless that address is an
+/// authorized cashier of the shop, so the payer cannot forge the attribution.
+/// Nobody signs from this register, so its sales go under the owner.
+function saleIdFor(cashier: `0x${string}`): `0x${string}` {
+  const tail = new Uint8Array(12)
+  crypto.getRandomValues(tail)
+  const hex = Array.from(tail, (b) => b.toString(16).padStart(2, '0')).join('')
+  return (cashier.toLowerCase() + hex) as `0x${string}`
 }
 
 // Sound must be armed by a user gesture (mobile requirement): COBRAR arms it.
@@ -82,7 +87,7 @@ type Sale = {
   rate?: number
   exp?: number
 }
-type PaidInfo = { payer?: string; txHash?: string; block?: bigint; late: boolean }
+type PaidInfo = { payer?: string; txHash?: string; block?: bigint; received?: bigint; late: boolean }
 type HistItem = { sale: Sale; status: 'pagada' | 'vencida'; txHash?: string; late: boolean }
 type View = { mode: 'entry' } | { mode: 'qr'; sale: Sale } | { mode: 'paid'; sale: Sale; info: PaidInfo }
 
@@ -212,10 +217,15 @@ export default function Caja() {
     onLogs: (logs) => {
       const log = logs[0]
       if (!log || !activeSale) return
+      // The amount travels in the QR url, so a customer can lower it before
+      // signing. Anything short of the price asked is not a paid sale.
+      const amount = log.args.amount
+      if (amount == null || amount < activeSale.amountUnits) return
       markPaid(activeSale, {
         payer: log.args.payer,
         txHash: log.transactionHash ?? undefined,
         block: log.blockNumber ?? undefined,
+        received: amount,
       })
     },
   })
@@ -230,11 +240,12 @@ export default function Caja() {
     query: { enabled: Boolean(activeSale), refetchInterval: 3000 },
   })
   useEffect(() => {
-    if (!activeSale || !paidRead.data || paidRead.data === 0n) return
+    if (!activeSale || paidRead.data == null || paidRead.data < activeSale.amountUnits) return
     const sale = activeSale
+    const received = paidRead.data
     // Backfill tx details from the event log (best-effort)
     void (async () => {
-      let info: Omit<PaidInfo, 'late'> = {}
+      let info: Omit<PaidInfo, 'late'> = { received }
       try {
         // A live sale just got paid: the recent window is enough (RPC log cap)
         const latest = (await publicClient?.getBlockNumber()) ?? 0n
@@ -249,6 +260,7 @@ export default function Caja() {
         const log = logs?.[0]
         if (log) {
           info = {
+            ...info,
             payer: log.args.payer,
             txHash: log.transactionHash ?? undefined,
             block: log.blockNumber ?? undefined,
@@ -268,11 +280,16 @@ export default function Caja() {
     if (!usdt && (!Number.isFinite(r) || r <= 0)) return
     const amountUnits = parseUnits((usdt ? typed : typed / r).toFixed(DECIMALS), DECIMALS)
     if (amountUnits <= 0n) return
+    // Without the owner there is no cashier to stamp into the sale id, and the
+    // router would reject the payment after the customer already signed.
+    const owner = merchantRead.data?.[0]
+    if (!owner || owner === ZERO_ADDR) return
     armSound()
+    const id = saleIdFor(owner)
     const sale: Sale = usdt
-      ? { id: randomSaleId(), amountUnits }
+      ? { id, amountUnits }
       : {
-          id: randomSaleId(),
+          id,
           amountUnits,
           bs: typed,
           rate: r,
@@ -365,6 +382,7 @@ export default function Caja() {
 
   if (view.mode === 'paid') {
     const { sale, info } = view
+    const received = info.received ?? sale.amountUnits
     return (
       <div className="success-panel">
         <div className="success-check">✓</div>
@@ -372,10 +390,10 @@ export default function Caja() {
         <div className="success-amount">
           {sale.bs != null
             ? `Bs ${nf.format(sale.bs)}`
-            : `${fmtUsdt(sale.amountUnits)} ${SYMBOL}`}
+            : `${fmtUsdt(received)} ${SYMBOL}`}
         </div>
         <div className="success-sub">
-          {fmtUsdt(sale.amountUnits)} {SYMBOL} · venta {short(sale.id)}
+          {fmtUsdt(received)} {SYMBOL} · venta {short(sale.id)}
         </div>
         {info.late && <span className="chip chip-amber">pago fuera de plazo (cotización vencida)</span>}
         <div className="receipt">

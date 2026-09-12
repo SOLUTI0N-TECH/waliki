@@ -7,10 +7,8 @@ class WalikiConfig {
   /// Optional private fallback RPC (event-day insurance), injected at build
   /// or run time: --dart-define=WALIKI_RPC=https://... Never committed.
   static const String rpcFallback = String.fromEnvironment('WALIKI_RPC');
-  static const String router = '0xd98869ebf0231ce1a56b145cb83db0ab2b1d382a';
+  static const String router = '0x5b003974862aa4ad00e09dfcade43abde593bbdc';
   static const String explorer = 'https://sepolia.basescan.org';
-  static const int merchantId = 1; // "Tienda Demo CBBA"
-  static const String cajaPin = '1234';
 
   /// Reown (WalletConnect) project id for the in-app wallet connection.
   /// Injected at build time so it is never committed:
@@ -19,7 +17,10 @@ class WalikiConfig {
     'WALIKI_REOWN_ID',
   );
   static const int quoteMinutes = 15;
-  static const int deployBlock = 46249000; // shortly before the router deploy
+  // Block the router was deployed in. Leave it behind and every history scan
+  // reads thousands of blocks where the contract did not exist yet; leave it
+  // ahead and sales go missing.
+  static const int deployBlock = 46743512;
 
   /// Shows the phase 2/3 navigable mockups (Modo Facil, Tienda, Puntaje) on
   /// the home screen. Off while they do nothing; flip to true to walk the

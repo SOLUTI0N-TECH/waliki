@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react'
-import { useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
+import {
+  usePublicClient,
+  useReadContract,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi'
 import { formatUnits } from 'viem'
 import { testUSDTAbi, walikiRouterAbi } from '../contracts/waliki'
 import { walikiNetwork } from '../lib/appkit'
@@ -37,6 +42,11 @@ function shortError(error: unknown): string {
   const anyErr = error as { shortMessage?: string; message?: string }
   const msg = anyErr.shortMessage ?? anyErr.message ?? String(error)
   if (/cooldown/i.test(msg)) return 'El faucet está en cooldown: se puede reclamar 1 vez por hora.'
+  // The cashier who issued this QR was revoked by the shop owner. Nothing the
+  // customer can fix from here, and nothing worth showing them in raw form.
+  if (/cajero no autorizado/i.test(msg))
+    return 'Este QR ya no es válido. Pídele a la caja que genere uno nuevo.'
+  if (/venta ya pagada/i.test(msg)) return 'Esta venta ya fue pagada.'
   return msg.slice(0, 160)
 }
 
@@ -119,6 +129,11 @@ export default function Pay() {
   const faucetTx = useWriteContract()
   const approveTx = useWriteContract()
   const payTx = useWriteContract()
+  const publicClient = usePublicClient({ chainId: CHAIN_ID })
+  // Checked against the chain before the wallet pops up, so a QR whose cashier
+  // was revoked says so in words instead of as a failed signature.
+  const [preflightError, setPreflightError] = useState<unknown>(null)
+  const [simulating, setSimulating] = useState(false)
 
   const faucetRcpt = useWaitForTransactionReceipt({ hash: faucetTx.data, chainId: CHAIN_ID })
   const approveRcpt = useWaitForTransactionReceipt({ hash: approveTx.data, chainId: CHAIN_ID })
@@ -168,8 +183,8 @@ export default function Pay() {
   const needsApprove = allowance !== undefined && allowance < amount
   const busyFaucet = faucetTx.isPending || Boolean(faucetTx.data && faucetRcpt.isLoading)
   const busyApprove = approveTx.isPending || Boolean(approveTx.data && approveRcpt.isLoading)
-  const busyPay = payTx.isPending || Boolean(payTx.data && payRcpt.isLoading)
-  const lastError = payTx.error ?? approveTx.error ?? faucetTx.error
+  const busyPay = payTx.isPending || simulating || Boolean(payTx.data && payRcpt.isLoading)
+  const lastError = preflightError ?? payTx.error ?? approveTx.error ?? faucetTx.error
 
   // Success screen: this browser just paid the sale
   if (justPaid) {
@@ -288,13 +303,32 @@ export default function Pay() {
         ) : (
           <button className="btn" disabled={busyPay || needsFaucet} onClick={() => {
             payTx.reset()
-            payTx.mutate({
-              address: ROUTER,
-              abi: walikiRouterAbi,
-              functionName: 'pay',
-              args: [sale.merchantId ?? 0n, sale.id ?? ZERO_SALE, amount],
-              chainId: CHAIN_ID,
-            })
+            setPreflightError(null)
+            const args = [sale.merchantId ?? 0n, sale.id ?? ZERO_SALE, amount] as const
+            void (async () => {
+              setSimulating(true)
+              try {
+                await publicClient?.simulateContract({
+                  address: ROUTER,
+                  abi: walikiRouterAbi,
+                  functionName: 'pay',
+                  args,
+                  account: account as `0x${string}`,
+                })
+              } catch (error) {
+                setPreflightError(error)
+                return
+              } finally {
+                setSimulating(false)
+              }
+              payTx.mutate({
+                address: ROUTER,
+                abi: walikiRouterAbi,
+                functionName: 'pay',
+                args,
+                chainId: CHAIN_ID,
+              })
+            })()
           }}>
             {busyPay ? 'Pagando…' : `Pagar ${fmtUsdt(amount)} ${SYMBOL} · firma 2 de 2`}
           </button>

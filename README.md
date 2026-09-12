@@ -23,11 +23,16 @@ Capa transversal: ventas verificadas → puntaje comercial → **microcrédito c
 | Rol | ¿Conecta wallet? | Qué hace |
 |-----|------------------|----------|
 | **Dueño** | Sí (una vez) | Registra el comercio on-chain; su firma **canda** la dirección de cobro |
-| **Cajero** | No (solo PIN) | Ingresa Bs → QR → espera la pantalla verde. Ve todo, no toca nada |
+| **Cajero** | No — nunca firma ni paga gas | Ingresa Bs → QR → espera la pantalla verde. Ve todo, no toca nada |
 | **Cliente** | Sí | Escanea el QR → página de pago → `approve` + `pay` → comprobante |
 
 La pantalla verde la dispara el **evento `PaymentReceived`** leído de la cadena — nunca una captura
 del cliente. La wallet se conecta **solo para firmar**; para mirar o recibir, nunca.
+
+Cada caja tiene **identidad propia en la cadena**: el dueño la autoriza con `addCashier` y le entrega
+un código corto (`7-K3NQ-7X2F-PM8T-QWRJ`). El `saleId` de cada venta lleva esa dirección dentro, así
+que el router rechaza los cobros de una caja dada de baja y cada venta queda atribuida sin que el
+pagador pueda falsearlo. El cajero sigue sin firmar nada: su PIN solo bloquea el teléfono.
 
 ## Stack
 - **Contratos**: Solidity 0.8.28 · Hardhat · OpenZeppelin · red **Base Sepolia** (chainId 84532)
@@ -77,7 +82,8 @@ cd contracts
 npm install && npm test
 ```
 
-Datos del demo: PIN de la caja **1234** · comercio #1 "Tienda Demo CBBA" · el QR de la app
+Datos del demo: PIN **1234** en la caja web · comercio #1 "Tienda Demo CBBA" · en la app el PIN lo
+elige el cajero al vincular su caja · el QR de la app
 codifica la URL de la web de pago y se cambia con el lápiz en la pantalla de cobro. Para
 desplegar contratos o correr scripts on-chain sí necesitas `contracts/.env` (ver `.env.example`).
 

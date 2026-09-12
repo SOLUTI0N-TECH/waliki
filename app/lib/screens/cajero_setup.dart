@@ -1,16 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../caja_code.dart';
+import '../cashier_identity.dart';
 import '../chain.dart';
 import '../session.dart';
 import '../ui.dart';
-import 'home.dart';
+import '../vault.dart';
+import 'cajero_pin.dart';
 
 /// The cashier turns this device into a register by typing the code the owner
-/// gave them (shop + PIN). No wallet, no keys, nothing to steal.
+/// handed them.
+///
+/// The code carries the shop id and the seed this phone derives its identity
+/// from. That identity is checked against `isCashier` before anything is
+/// saved: typing a shop number no longer gets you a register, which is exactly
+/// what it used to do.
 class CajeroSetupScreen extends StatefulWidget {
   final Session session;
-  const CajeroSetupScreen({super.key, required this.session});
+
+  /// Shown above the field when the register was sent back here because its
+  /// identity is gone (uninstall, restored backup, cleared app data).
+  final String? notice;
+
+  const CajeroSetupScreen({super.key, required this.session, this.notice});
 
   @override
   State<CajeroSetupScreen> createState() => _CajeroSetupScreenState();
@@ -28,9 +41,11 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
   }
 
   Future<void> _vincular() async {
-    final parsed = Session.parseCajaCode(_ctrl.text);
+    final parsed = parseCajaCode(_ctrl.text);
     if (parsed == null) {
-      setState(() => _error = 'Código inválido. Debe verse así: 74821');
+      setState(
+        () => _error = 'Código inválido. Debe verse así: 7-K3NQ-7X2F-PM8T-QWRJ',
+      );
       return;
     }
     setState(() {
@@ -38,38 +53,60 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
       _error = null;
     });
 
-    // Verify the shop actually exists on-chain before linking the device
     try {
-      final m = await Chain.merchant(parsed.merchantId);
-      if (m.owner.isEmpty ||
-          m.owner == '0x0000000000000000000000000000000000000000') {
-        if (!mounted) return;
-        setState(() {
-          _busy = false;
-          _error =
-              'El comercio #${parsed.merchantId} no existe en la blockchain.';
-        });
+      final merchant = await Chain.merchant(parsed.merchantId);
+      if (merchant.owner.isEmpty ||
+          merchant.owner == '0x0000000000000000000000000000000000000000') {
+        _fail('El comercio #${parsed.merchantId} no existe en la blockchain.');
         return;
       }
+
+      final identity = deriveCashier(parsed.seed);
+      final authorized = await Chain.isCashier(
+        parsed.merchantId,
+        identity.address,
+      );
+      if (!authorized) {
+        // Covers both a typo and a register the owner already revoked, and
+        // there is no way to tell them apart from here -- nor any need to.
+        _fail(
+          'Este código no está autorizado en ${merchant.displayName}. '
+          'Pídele al dueño que genere una caja nueva.',
+        );
+        return;
+      }
+
+      await Vaults.instance.write(
+        Vaults.cashierSeedKey,
+        encodeCajaCode(parsed.merchantId, parsed.seed),
+      );
       final s = widget.session;
       s.role = Role.cajero;
       s.merchantId = parsed.merchantId;
-      s.pin = parsed.pin;
+      s.cashierAddress = identity.address;
+      s.pin = null;
       await s.save();
+
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => HomeScreen(session: s, merchantId: parsed.merchantId),
+          builder: (_) =>
+              CajeroPinScreen(session: s, merchantId: parsed.merchantId),
         ),
         (route) => false,
       );
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = 'No se pudo verificar el comercio: $e';
-      });
+      _fail('No se pudo verificar el código. Revisa tu conexión.');
+      debugPrint('cajero_setup: $e');
     }
+  }
+
+  void _fail(String message) {
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _error = message;
+    });
   }
 
   @override
@@ -105,33 +142,65 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Es el código que te dio el dueño del comercio. Se ve así: 74821',
+                'Es el código que te dio el dueño del comercio. '
+                'Se ve así: 7-K3NQ-7X2F-PM8T-QWRJ',
                 textAlign: TextAlign.center,
                 style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
               ),
+              if (widget.notice != null) ...[
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kSurface2,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    widget.notice!,
+                    style: wk(
+                      size: 12.5,
+                      weight: 600,
+                      color: kInkSoft,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               TextField(
                 controller: _ctrl,
                 textAlign: TextAlign.center,
-                keyboardType: TextInputType.number,
-                // Strips the W and the dash off codes handed out earlier, which
-                // is exactly what the parser wants anyway.
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: wk(
-                  size: 30,
-                  weight: 800,
-                  tracking: -0.02,
-                  tabular: true,
-                ),
+                // Letters AND digits now: the old digits-only formatter would
+                // make this code literally impossible to type.
+                keyboardType: TextInputType.visiblePassword,
+                autocorrect: false,
+                enableSuggestions: false,
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [
+                  TextInputFormatter.withFunction(
+                    (_, next) => next.copyWith(
+                      text: formatCajaCodeInput(next.text),
+                      selection: TextSelection.collapsed(
+                        offset: formatCajaCodeInput(
+                          next.text.substring(0, next.selection.baseOffset),
+                        ).length,
+                      ),
+                    ),
+                  ),
+                ],
+                style: wk(size: 21, weight: 800, mono: true),
                 onChanged: (_) => setState(() => _error = null),
                 onSubmitted: (_) => _vincular(),
                 decoration: InputDecoration(
-                  hintText: '74821',
+                  hintText: '7-K3NQ-7X2F-PM8T-QWRJ',
                   hintStyle: wk(
-                    size: 30,
-                    weight: 800,
+                    size: 19,
+                    weight: 700,
                     color: const Color(0xFFC6CEC8),
-                    tabular: true,
+                    mono: true,
                   ),
                   filled: true,
                   fillColor: kSurface,
@@ -153,7 +222,7 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
                     final d = await Clipboard.getData(Clipboard.kTextPlain);
                     if (d?.text != null) {
                       setState(() {
-                        _ctrl.text = d!.text!.trim();
+                        _ctrl.text = formatCajaCodeInput(d!.text!);
                         _error = null;
                       });
                     }

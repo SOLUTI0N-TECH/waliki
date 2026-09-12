@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'screens/cajero_setup.dart';
 import 'screens/home.dart';
 import 'screens/mis_comercios.dart';
 import 'screens/welcome.dart';
 import 'session.dart';
 import 'ui.dart';
+import 'vault.dart';
 import 'wallet.dart';
 
 void main() => runApp(const WalikiApp());
@@ -55,13 +57,31 @@ class Bootstrap extends StatefulWidget {
   State<Bootstrap> createState() => _BootstrapState();
 }
 
+typedef _Boot = ({Session session, bool cashierReady});
+
 class _BootstrapState extends State<Bootstrap> {
-  late final Future<Session> _session = Session.load();
+  late final Future<_Boot> _boot = _load();
+
+  /// A linked register also has to still HAVE its identity. Android restores
+  /// preferences from a backup but not the Keystore key that opens the vault,
+  /// so without this check the app would open a register that believes it is
+  /// linked, ask for a PIN, and then not be able to issue a single sale.
+  static Future<_Boot> _load() async {
+    final session = await Session.load();
+    if (session.role != Role.cajero) {
+      return (session: session, cashierReady: true);
+    }
+    final seed = await Vaults.instance.read(Vaults.cashierSeedKey);
+    return (
+      session: session,
+      cashierReady: seed != null && session.cashierAddress != null,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Session>(
-      future: _session,
+    return FutureBuilder<_Boot>(
+      future: _boot,
       builder: (context, snap) {
         if (!snap.hasData) {
           return const Scaffold(
@@ -74,9 +94,19 @@ class _BootstrapState extends State<Bootstrap> {
             ),
           );
         }
-        final s = snap.data!;
-        if (s.role == Role.cajero && s.merchantId != null) {
-          return PinGate(session: s, merchantId: s.merchantId!);
+        final s = snap.data!.session;
+        if (s.role == Role.cajero) {
+          if (!snap.data!.cashierReady) {
+            return CajeroSetupScreen(
+              session: s,
+              notice:
+                  'Esta caja perdió su vinculación con el comercio. '
+                  'Vuelve a ingresar el código que te dio el dueño.',
+            );
+          }
+          if (s.merchantId != null) {
+            return PinGate(session: s, merchantId: s.merchantId!);
+          }
         }
         if (s.role == Role.duenio && s.ownerAddress != null) {
           return MisComerciosScreen(session: s);
@@ -108,7 +138,7 @@ class _PinGateState extends State<PinGate> {
         if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
         return;
       }
-      final expected = widget.session.pin ?? '1234';
+      final expected = widget.session.pin!;
       if (_pin.length >= expected.length) return;
       _pin += key;
       if (_pin.length == expected.length) {
@@ -130,8 +160,29 @@ class _PinGateState extends State<PinGate> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Nothing to ask for: the register was linked before cashiers chose their
+    // own PIN, or the choice was interrupted. An implicit 1234 is worse than
+    // no lock -- it looks like one.
+    if (widget.session.pin == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => HomeScreen(
+              session: widget.session,
+              merchantId: widget.merchantId,
+            ),
+          ),
+        );
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final len = (widget.session.pin ?? '1234').length;
+    final len = widget.session.pin?.length ?? 4;
     return Scaffold(
       appBar: const WalikiBar(mark: false),
       body: SafeArea(
@@ -186,7 +237,7 @@ class _PinGateState extends State<PinGate> {
                 ],
               ),
               const SizedBox(height: 26),
-              _Keypad(onKey: _tap),
+              Keypad(onKey: _tap),
               const SizedBox(height: 18),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -205,55 +256,6 @@ class _PinGateState extends State<PinGate> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Keypad extends StatelessWidget {
-  final void Function(String) onKey;
-  const _Keypad({required this.onKey});
-
-  @override
-  Widget build(BuildContext context) {
-    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '<'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: GridView.count(
-        crossAxisCount: 3,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 1.55,
-        children: [
-          for (final k in keys)
-            k.isEmpty
-                ? const SizedBox()
-                : Material(
-                    color: kSurface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: kLine),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => onKey(k),
-                      child: Center(
-                        child: k == '<'
-                            ? const Icon(
-                                Icons.backspace_outlined,
-                                color: kInkSoft,
-                                size: 22,
-                              )
-                            : Text(
-                                k,
-                                style: wk(size: 25, weight: 600, tabular: true),
-                              ),
-                      ),
-                    ),
-                  ),
-        ],
       ),
     );
   }

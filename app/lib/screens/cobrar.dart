@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -49,6 +48,11 @@ class _CobrarScreenState extends State<CobrarScreen> {
   String _amount = '';
   _Sale? _sale;
   Payment? _payment;
+
+  /// What the chain actually received. Never below the price asked (the
+  /// green screen waits for that), but it can be above it if the customer
+  /// overpaid, and that is the figure the cashier has to see.
+  BigInt? _paidUnits;
 
   /// Set for a sale charged in Bs: the bank QR the backend issued, and the
   /// image it came with. Null for the on-chain USDT rail.
@@ -156,9 +160,22 @@ class _CobrarScreenState extends State<CobrarScreen> {
     final rate = _rate;
     final units = _units(typed, rate);
     if (units == null) return;
-    final rnd = Random.secure();
-    final id =
-        '0x${List.generate(32, (_) => rnd.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
+
+    // The sale id carries the register that issued it, and the router refuses
+    // to settle a sale whose register is not authorized. Without an identity
+    // the QR would still look perfect, the customer would sign, and the
+    // payment would revert: they would believe they paid and this screen
+    // would wait forever.
+    final cashier = widget.session.cashierAddress;
+    if (cashier == null || cashier.isEmpty) {
+      setState(
+        () => _error =
+            'Esta caja no está vinculada al comercio. Vuelve a ingresar '
+            'el código que te dio el dueño.',
+      );
+      return;
+    }
+    final id = buildSaleId(cashier);
 
     // In USDT the customer signs the payment from their own wallet: the QR is
     // a link to the payment page and nothing has to be issued for it.
@@ -258,7 +275,10 @@ class _CobrarScreenState extends State<CobrarScreen> {
 
     try {
       final paid = await Chain.paidAmount(widget.merchantId, sale.id);
-      if (paid > BigInt.zero && mounted && _phase == _Phase.qr) {
+      // The amount travels in the QR url, so a customer can lower it before
+      // signing. Anything short of the price asked is not a paid sale.
+      if (paid >= sale.amountUnits && mounted && _phase == _Phase.qr) {
+        _paidUnits = paid;
         final exp = sale.exp;
         _late =
             exp != null && DateTime.now().millisecondsSinceEpoch ~/ 1000 > exp;
@@ -291,6 +311,7 @@ class _CobrarScreenState extends State<CobrarScreen> {
       _amount = '';
       _sale = null;
       _payment = null;
+      _paidUnits = null;
       _fiat = null;
       _qrImage = null;
       _error = null;
@@ -526,6 +547,7 @@ class _CobrarScreenState extends State<CobrarScreen> {
   Widget _buildPaid() {
     final sale = _sale!;
     final p = _payment;
+    final received = _paidUnits ?? sale.amountUnits;
     return Scaffold(
       body: AnnotatedRegion<SystemUiOverlayStyle>(
         // Light icons: this screen fills the status bar with deep green.
@@ -592,12 +614,12 @@ class _CobrarScreenState extends State<CobrarScreen> {
                   Text(
                     sale.bs != null
                         ? 'Bs ${fmtNum(sale.bs!)}'
-                        : '${fmtUsdt(sale.amountUnits)} tUSDT',
+                        : '${fmtUsdt(received)} tUSDT',
                     style: wkNum(size: 46, color: Colors.white),
                   ),
                   Text(
                     sale.bs != null
-                        ? '${fmtUsdt(sale.amountUnits)} tUSDT · venta ${short(sale.id)}'
+                        ? '${fmtUsdt(received)} tUSDT · venta ${short(sale.id)}'
                         : 'venta ${short(sale.id)}',
                     style: wk(
                       size: 13.5,

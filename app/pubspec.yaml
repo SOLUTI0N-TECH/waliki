@@ -42,6 +42,16 @@ dependencies:
   url_launcher: ^6.3.2
   reown_appkit: ^1.9.0
 
+  # Both already came in as transitive dependencies of reown_appkit, but the
+  # depend_on_referenced_packages lint (flutter_lints -> lints/core) fails the
+  # analyzer the moment they are imported directly. Same constraints reown
+  # declares, so pubspec.lock does not move.
+  #
+  # web3dart: keccak256 + secp256k1 for the cashier identity (pure Dart).
+  # flutter_secure_storage: where that identity's seed lives on the device.
+  web3dart: ^3.0.1
+  flutter_secure_storage: ^10.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

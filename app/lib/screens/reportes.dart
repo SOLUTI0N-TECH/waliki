@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../chain.dart';
 import '../session.dart';
 import '../ui.dart';
+import 'historial.dart';
 import '../skeletons.dart';
 
 enum _Period { hoy, semana, mes, todo }
@@ -38,6 +39,12 @@ String _fecha(DateTime d) => '${d.day} ${_meses[d.month - 1]}';
 String _hora(DateTime d) =>
     '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
+/// Register labels are typed by the owner, so a comma or a quote in one would
+/// quietly shift every column to its right.
+String _csv(String value) => value.contains(',') || value.contains('"')
+    ? '"${value.replaceAll('"', '""')}"'
+    : value;
+
 /// Sales reporting, built entirely from on-chain events. This is the
 /// "contabilidad automática" pillar: numbers nobody can edit, exportable.
 class ReportesScreen extends StatefulWidget {
@@ -58,15 +65,43 @@ class _ReportesScreenState extends State<ReportesScreen> {
   _Period _period = _Period.semana;
   int? _selectedBar;
 
+  /// Register labels, keyed by address. Best-effort: they live only in the
+  /// event log, so a refused window costs a name, never a figure. Everything
+  /// falls back to the short address.
+  Map<String, String> _labels = const {};
+
+  /// On a cashier's phone the useful default is their own takings — that is
+  /// what they count at the end of a shift. The owner sees everything.
+  late bool _soloMias = widget.session.role == Role.cajero;
+
   @override
   void initState() {
     super.initState();
     _reload();
+    _loadLabels();
   }
 
   void _reload() {
     _future = Chain.paymentsWithTime(merchantId: widget.merchantId);
   }
+
+  Future<void> _loadLabels() async {
+    try {
+      final cashiers = await Chain.cashiers(widget.merchantId);
+      if (!mounted) return;
+      setState(() {
+        _labels = {
+          for (final c in cashiers)
+            if (c.label.isNotEmpty) c.address: c.label,
+        };
+      });
+    } catch (_) {
+      // names are a nicety; the report never waits for them
+    }
+  }
+
+  String _nombreCajero(String address) =>
+      _labels[address] ?? 'Caja ${short(address)}';
 
   /// Pull to refresh; the builder below renders any failure on its own.
   Future<void> _refresh() async {
@@ -89,10 +124,23 @@ class _ReportesScreenState extends State<ReportesScreen> {
     };
   }
 
+  /// Everything this screen is currently about, before the period filter.
+  List<Payment> _visible(List<Payment> all) {
+    final mine = _soloMias
+        ? widget.session.cashierAddress?.toLowerCase()
+        : null;
+    if (mine == null) return all;
+    return all.where((p) => p.cashier == mine).toList();
+  }
+
   List<Payment> _filter(List<Payment> all) {
     final since = _since;
-    if (since == null) return all;
+    final mine = _soloMias
+        ? widget.session.cashierAddress?.toLowerCase()
+        : null;
     return all.where((p) {
+      if (mine != null && p.cashier != mine) return false;
+      if (since == null) return true;
       final d = p.date;
       return d != null && d.isAfter(since);
     }).toList();
@@ -103,7 +151,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
   /// was actually charged. The header says so.
   Future<void> _exportCsv(List<Payment> rows) async {
     final buf = StringBuffer(
-      'fecha,hora,venta,monto_usdt,monto_bs_estimado,pagador,bloque,transaccion\n',
+      'fecha,hora,venta,monto_usdt,monto_bs_estimado,pagador,'
+      'cajero,cajero_etiqueta,bloque,transaccion\n',
     );
     for (final p in rows.reversed) {
       final d = p.date;
@@ -116,6 +165,8 @@ class _ReportesScreenState extends State<ReportesScreen> {
           usdt.toStringAsFixed(2),
           (usdt * _rate).toStringAsFixed(2),
           p.payer,
+          p.cashier,
+          _csv(_labels[p.cashier] ?? ''),
           p.block.toString(),
           p.txHash,
         ].join(','),
@@ -159,18 +210,26 @@ class _ReportesScreenState extends State<ReportesScreen> {
               if (!snap.hasData) {
                 return const ReportesSkeleton();
               }
-              final all = snap.data!;
-              final rows = _filter(all);
+              final all = _visible(snap.data!);
+              final rows = _filter(snap.data!);
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
                 children: [
+                  if (widget.session.cashierAddress != null) ...[
+                    _scopeToggle(),
+                    const SizedBox(height: 10),
+                  ],
                   _filters(),
                   const SizedBox(height: 16),
                   _kpis(rows),
                   const SizedBox(height: 18),
                   _chart(all),
                   const SizedBox(height: 18),
+                  if (!_soloMias) ...[
+                    _porCajero(rows),
+                    const SizedBox(height: 18),
+                  ],
                   _exportCard(rows),
                   const SizedBox(height: 14),
                   Text(
@@ -189,6 +248,121 @@ class _ReportesScreenState extends State<ReportesScreen> {
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _scopeToggle() => Row(
+    children: [
+      for (final mine in [true, false]) ...[
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _soloMias = mine),
+            child: Container(
+              height: 36,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _soloMias == mine ? kBrandTint : kSurface,
+                border: Border.all(color: _soloMias == mine ? kBrand : kLine),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                mine ? 'Mis ventas' : 'Todo el comercio',
+                style: wk(
+                  size: 12.5,
+                  weight: 700,
+                  color: _soloMias == mine ? kBrandInk : kInkSoft,
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (mine) const SizedBox(width: 8),
+      ],
+    ],
+  );
+
+  /// Who took the money. The whole point of putting cashiers on-chain: the
+  /// attribution comes from the sale id the router validated, so nobody —
+  /// including whoever runs this app — can move a sale from one register to
+  /// another after the fact.
+  Widget _porCajero(List<Payment> rows) {
+    final totals = <String, BigInt>{};
+    final counts = <String, int>{};
+    for (final p in rows) {
+      totals[p.cashier] = (totals[p.cashier] ?? BigInt.zero) + p.amount;
+      counts[p.cashier] = (counts[p.cashier] ?? 0) + 1;
+    }
+    if (totals.isEmpty) return const SizedBox.shrink();
+
+    final ordered = totals.keys.toList()
+      ..sort((a, b) => totals[b]!.compareTo(totals[a]!));
+    final top = totals[ordered.first]!.toDouble();
+
+    return WCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Por cajero', style: wk(size: 14, weight: 700)),
+          const SizedBox(height: 4),
+          Text(
+            'Cada venta queda firmada con la caja que la emitió.',
+            style: wk(size: 11.5, weight: 500, color: kInkSoft),
+          ),
+          const SizedBox(height: 12),
+          for (final address in ordered) ...[
+            GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => HistorialScreen(
+                    merchantId: widget.merchantId,
+                    cashier: address,
+                    titulo: _nombreCajero(address),
+                  ),
+                ),
+              ),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _nombreCajero(address),
+                            style: wk(size: 13, weight: 600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          '${fmtUsdt(totals[address]!)} tUSDT',
+                          style: wk(size: 13, weight: 700, tabular: true),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        value: top == 0 ? 0 : totals[address]!.toDouble() / top,
+                        minHeight: 7,
+                        backgroundColor: kSurface2,
+                        valueColor: const AlwaysStoppedAnimation(kBrand),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${counts[address]} ${counts[address] == 1 ? 'venta' : 'ventas'}',
+                      style: wk(size: 11.5, weight: 500, color: kInkSoft),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

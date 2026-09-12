@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'abi.dart';
 import 'config.dart';
 
 /// Minimal JSON-RPC client for read-only chain access. The demo app never
@@ -49,13 +51,13 @@ class Rpc {
   }
 }
 
-// keccak-256 selectors precomputed offline with viem (see contracts/):
-//   merchants(uint256)          -> 0x92c8823b
-//   paidAmount(uint256,bytes32) -> 0x9378fd0b
-//   merchantCount()             -> 0x89105185
-const String _selMerchants = '92c8823b';
-const String _selPaidAmount = '9378fd0b';
-const String _selMerchantCount = '89105185';
+// keccak-256 selectors and topic0, precomputed so the app carries no ABI.
+// contracts/test/waliki.test.ts asserts all of them against the compiled
+// contract, and test/abi_test.dart re-hashes the signatures here.
+const String selMerchants = '92c8823b'; // merchants(uint256)
+const String selPaidAmount = '9378fd0b'; // paidAmount(uint256,bytes32)
+const String selMerchantCount = '89105185'; // merchantCount()
+const String selIsCashier = '909cf575'; // isCashier(uint256,address)
 
 /// topic0 of PaymentReceived(uint256,bytes32,address,uint256,address)
 const String paymentReceivedTopic =
@@ -65,28 +67,32 @@ const String paymentReceivedTopic =
 const String merchantRegisteredTopic =
     '0x037fddc1b3113ac1da8bedf43384dd2830a0409fdb349f3cd03c79f9c0a09dbc';
 
-String _word(BigInt v) => v.toRadixString(16).padLeft(64, '0');
+/// topic0 of CashierAdded(uint256,address,string)
+const String cashierAddedTopic =
+    '0xe3343999af5709fd77744d1e75d1f52604472c522e29a62cde2e4e284cba55ec';
 
-String _wordFromHex(String h) =>
-    h.replaceFirst('0x', '').toLowerCase().padLeft(64, '0');
+/// topic0 of CashierRemoved(uint256,address)
+const String cashierRemovedTopic =
+    '0x54a78a91dea4745892ac90c82e3b81b4bbff52f2d6bececff18bff4fc2608fc7';
 
-BigInt _uint(String word) => BigInt.parse(word, radix: 16);
-
-/// Last 20 bytes of a 32-byte word, as a 0x address.
-String _addr(String word) => '0x${word.substring(24)}';
-
-/// Decodes a dynamic string laid out as: length word, then UTF-8 bytes.
-String _string(String hexFromLength) {
-  if (hexFromLength.length < 64) return '';
-  final len = _uint(hexFromLength.substring(0, 64)).toInt();
-  if (len == 0 || hexFromLength.length < 64 + len * 2) return '';
-  final bytesHex = hexFromLength.substring(64, 64 + len * 2);
-  final bytes = <int>[
-    for (var i = 0; i < bytesHex.length; i += 2)
-      int.parse(bytesHex.substring(i, i + 2), radix: 16),
-  ];
-  return utf8.decode(bytes, allowMalformed: true);
+/// A fresh sale id: the cashier in the first 20 bytes, 12 random after it.
+///
+/// The router reads that prefix and refuses to settle unless it is one of the
+/// shop's authorized cashiers, so the attribution is sealed into a field the
+/// payer cannot rewrite without simply paying a different sale -- one no cash
+/// register is waiting for.
+String buildSaleId(String cashier) {
+  final rnd = Random.secure();
+  final tail = List.generate(
+    12,
+    (_) => rnd.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ).join();
+  return '0x${cashier.replaceFirst('0x', '').toLowerCase()}$tail';
 }
+
+/// The cashier a sale belongs to. Mirrors cashierOf() in the contract.
+String cashierOf(String saleId) =>
+    '0x${saleId.replaceFirst('0x', '').toLowerCase().substring(0, 40)}';
 
 class Merchant {
   final int id;
@@ -102,6 +108,21 @@ class Merchant {
   });
 
   String get displayName => name.isEmpty ? 'Comercio #$id' : name;
+}
+
+/// A register authorized by a shop. The label is only ever in the event log --
+/// the contract does not store it -- so it can be missing while isCashier
+/// still says the address is good.
+class Cashier {
+  final String address;
+  final String label;
+  final bool active;
+
+  const Cashier({
+    required this.address,
+    required this.label,
+    required this.active,
+  });
 }
 
 class Payment {
@@ -135,6 +156,37 @@ class Payment {
   DateTime? get date => timestamp == null
       ? null
       : DateTime.fromMillisecondsSinceEpoch(timestamp! * 1000);
+
+  /// The register that issued this sale, read out of the sale id exactly like
+  /// the contract does. Derived rather than stored on purpose: it can never
+  /// drift from the sale id, it costs nothing in the cache, and sales cached
+  /// before cashiers existed still answer correctly.
+  String get cashier => cashierOf(saleId);
+
+  /// One `eth_getLogs` entry for PaymentReceived. Returns null instead of
+  /// throwing so one malformed log cannot empty a whole history.
+  ///
+  /// topics: topic0 | merchantId | saleId | payer
+  /// data:   amount | payout
+  static Payment? fromLog(Object? log) {
+    if (log is! Map) return null;
+    try {
+      final topics = log['topics'] as List<dynamic>;
+      final data = log['data'] as String;
+      return Payment(
+        saleId: topics[2] as String,
+        payer: abiAddr(abiWordHex(topics[3] as String)),
+        amount: abiUint(data.substring(2, 66)),
+        txHash: log['transactionHash'] as String,
+        block: BigInt.parse(
+          (log['blockNumber'] as String).substring(2),
+          radix: 16,
+        ),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 
   Map<String, dynamic> toJson() => {
     's': saleId,
@@ -172,6 +224,15 @@ class Payment {
   }
 }
 
+/// Cache key for a shop's sales. It includes the router because merchant ids
+/// restart at 1 on every redeploy: keyed by the id alone, a device that had
+/// shop #1 cached would merge sales from two different contracts, inflate the
+/// home total, and never correct itself.
+String paymentsCacheKey(int merchantId) {
+  final router = WalikiConfig.router.replaceFirst('0x', '').toLowerCase();
+  return 'waliki.p2.${router.substring(0, 8)}.$merchantId';
+}
+
 /// Sales already read from the chain, kept on the device.
 ///
 /// Without this, every time the register opens it re-reads the whole history
@@ -185,8 +246,8 @@ class _PaymentCache {
   /// head, so a short reorg cannot leave a sale behind that no longer exists.
   static const int reorgDepth = 300;
 
-  static String _listKey(int id) => 'waliki.payments.$id';
-  static String _blockKey(int id) => 'waliki.paymentsBlock.$id';
+  static String _listKey(int id) => paymentsCacheKey(id);
+  static String _blockKey(int id) => '${paymentsCacheKey(id)}.block';
 
   /// The stored sales and the block they were read up to.
   static Future<(List<Payment>, BigInt?)> load(int id) async {
@@ -246,15 +307,15 @@ class Chain {
 
   static Future<int> merchantCount() async {
     final res = await Rpc.call('eth_call', [
-      {'to': WalikiConfig.router, 'data': '0x$_selMerchantCount'},
+      {'to': WalikiConfig.router, 'data': '0x$selMerchantCount'},
       'latest',
     ]) as String;
-    return _uint(res.substring(2)).toInt();
+    return abiUint(res.substring(2)).toInt();
   }
 
   /// Full merchant record. Return layout: owner | payout | offset | len | bytes
   static Future<Merchant> merchant(int id) async {
-    final data = '0x$_selMerchants${_word(BigInt.from(id))}';
+    final data = '0x$selMerchants${abiWord(BigInt.from(id))}';
     final res = await Rpc.call('eth_call', [
       {'to': WalikiConfig.router, 'data': data},
       'latest',
@@ -265,9 +326,9 @@ class Chain {
     }
     return Merchant(
       id: id,
-      owner: _addr(hex.substring(0, 64)),
-      payout: _addr(hex.substring(64, 128)),
-      name: _string(hex.substring(64 * 3)),
+      owner: abiAddr(hex.substring(0, 64)),
+      payout: abiAddr(hex.substring(64, 128)),
+      name: abiString(hex.substring(64 * 3)),
     );
   }
 
@@ -276,12 +337,24 @@ class Chain {
 
   static Future<BigInt> paidAmount(int merchantId, String saleId) async {
     final data =
-        '0x$_selPaidAmount${_word(BigInt.from(merchantId))}${_wordFromHex(saleId)}';
+        '0x$selPaidAmount${abiWord(BigInt.from(merchantId))}${abiWordHex(saleId)}';
     final res = await Rpc.call('eth_call', [
       {'to': WalikiConfig.router, 'data': data},
       'latest',
     ]) as String;
-    return _uint(res.substring(2));
+    return abiUint(res.substring(2));
+  }
+
+  /// Is this address authorized to issue sales for the shop? The one answer
+  /// that never lies: storage, not a replay of events.
+  static Future<bool> isCashier(int merchantId, String address) async {
+    final data =
+        '0x$selIsCashier${abiWordInt(merchantId)}${abiWordHex(address)}';
+    final res = await Rpc.call('eth_call', [
+      {'to': WalikiConfig.router, 'data': data},
+      'latest',
+    ]) as String;
+    return abiUint(res.substring(2)) != BigInt.zero;
   }
 
   /// Public RPCs cap eth_getLogs at 10,000 blocks per request.
@@ -363,14 +436,14 @@ class Chain {
 
   /// All PaymentReceived logs for a merchant (optionally a single sale).
   static Future<List<Payment>> payments({
-    int? merchantId,
+    required int merchantId,
     String? saleId,
   }) async {
-    final id = merchantId ?? WalikiConfig.merchantId;
+    final id = merchantId;
     final topics = <dynamic>[
       paymentReceivedTopic,
-      '0x${_word(BigInt.from(id))}',
-      if (saleId != null) '0x${_wordFromHex(saleId)}',
+      '0x${abiWord(BigInt.from(id))}',
+      if (saleId != null) '0x${abiWordHex(saleId)}',
     ];
     // Asking about one sale is a question about right now: it skips the cache
     // and only looks at recent blocks.
@@ -405,18 +478,67 @@ class Chain {
   }
 
   static List<Payment> _decodePayments(List<dynamic> logs) => [
-    for (final l in logs)
-      Payment(
-        saleId: l['topics'][2] as String,
-        payer: _addr(_wordFromHex(l['topics'][3] as String)),
-        amount: _uint((l['data'] as String).substring(2, 66)),
-        txHash: l['transactionHash'] as String,
-        block: BigInt.parse(
-          (l['blockNumber'] as String).substring(2),
-          radix: 16,
-        ),
-      ),
+    for (final l in logs) ?Payment.fromLog(l),
   ];
+
+  /// Every register the shop ever had, with its label and whether it is still
+  /// active.
+  ///
+  /// Rebuilt from the logs and then CONFIRMED one by one. The logs alone are
+  /// not enough: an alta-baja-alta cycle reads as whatever event happens to
+  /// come last if they are replayed out of order, and a window the public RPC
+  /// refused leaves the list short without an error. isCashier decides; the
+  /// logs only supply the labels, which the contract does not store.
+  static Future<List<Cashier>> cashiers(int merchantId) async {
+    final logs = await _scanLogs(<dynamic>[
+      [cashierAddedTopic, cashierRemovedTopic],
+      '0x${abiWordInt(merchantId)}',
+    ]);
+    logs.sort((a, b) {
+      final byBlock = _hexInt(a['blockNumber'])
+          .compareTo(_hexInt(b['blockNumber']));
+      return byBlock != 0
+          ? byBlock
+          : _hexInt(a['logIndex']).compareTo(_hexInt(b['logIndex']));
+    });
+
+    final labels = <String, String>{};
+    final order = <String>[];
+    for (final l in logs) {
+      final topics = l['topics'] as List<dynamic>;
+      if (topics.length < 3) continue;
+      final address = abiAddr(abiWordHex(topics[2] as String));
+      if (!order.contains(address)) order.add(address);
+      // Re-adding an active cashier is how a register gets renamed, so the
+      // last CashierAdded wins.
+      if (topics[0] == cashierAddedTopic) {
+        final data = (l['data'] as String).substring(2);
+        labels[address] = data.length > 64 ? abiString(data.substring(64)) : '';
+      }
+    }
+
+    final active = <bool>[];
+    for (var i = 0; i < order.length; i += 8) {
+      final end = (i + 8 > order.length) ? order.length : i + 8;
+      active.addAll(
+        await Future.wait([
+          for (final a in order.sublist(i, end)) isCashier(merchantId, a),
+        ]),
+      );
+    }
+
+    return [
+      for (var i = 0; i < order.length; i++)
+        Cashier(
+          address: order[i],
+          label: labels[order[i]] ?? '',
+          active: active[i],
+        ),
+    ];
+  }
+
+  static BigInt _hexInt(Object? hex) =>
+      hex is String ? BigInt.parse(hex.substring(2), radix: 16) : BigInt.zero;
 
   /// Every shop registered by this owner.
   ///
@@ -446,7 +568,7 @@ class Chain {
     final topics = <dynamic>[
       merchantRegisteredTopic,
       null,
-      '0x${_wordFromHex(owner)}',
+      '0x${abiWordHex(owner)}',
     ];
     final logs = await _scanLogs(topics);
     final out = <Merchant>[];
@@ -455,10 +577,10 @@ class Chain {
       final data = (l['data'] as String).substring(2);
       out.add(
         Merchant(
-          id: _uint(_wordFromHex(l['topics'][1] as String)).toInt(),
+          id: abiUint(abiWordHex(l['topics'][1] as String)).toInt(),
           owner: owner,
-          payout: _addr(data.substring(0, 64)),
-          name: data.length > 128 ? _string(data.substring(128)) : '',
+          payout: abiAddr(data.substring(0, 64)),
+          name: data.length > 128 ? abiString(data.substring(128)) : '',
         ),
       );
     }
@@ -498,7 +620,9 @@ class Chain {
   }
 
   /// Payments with their real dates attached — what the reports screen needs.
-  static Future<List<Payment>> paymentsWithTime({int? merchantId}) async {
+  static Future<List<Payment>> paymentsWithTime({
+    required int merchantId,
+  }) async {
     final list = await payments(merchantId: merchantId);
     if (list.isEmpty) return list;
     // A block's timestamp never changes, so only the ones still missing cost a
@@ -513,7 +637,7 @@ class Chain {
       for (final p in list)
         p.timestamp == null ? p.withTime(times[p.block]) : p,
     ];
-    await _PaymentCache.update(merchantId ?? WalikiConfig.merchantId, filled);
+    await _PaymentCache.update(merchantId, filled);
     return filled;
   }
 }

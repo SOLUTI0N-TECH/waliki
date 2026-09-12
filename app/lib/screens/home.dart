@@ -10,7 +10,7 @@ import 'cobrar.dart';
 import 'concepto.dart';
 import 'historial.dart';
 import 'reportes.dart';
-import 'vincular_caja.dart';
+import 'cajeros.dart';
 import 'welcome.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -52,13 +52,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _menu(String value) async {
     switch (value) {
-      case 'vincular':
+      case 'cajeros':
         final m = await _merchant;
         if (!mounted) return;
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) =>
-                VincularCajaScreen(session: widget.session, merchant: m),
+            builder: (_) => CajerosScreen(session: widget.session, merchant: m),
           ),
         );
       case 'salir':
@@ -91,11 +90,8 @@ class _HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context) => [
               if (esDuenio)
                 PopupMenuItem(
-                  value: 'vincular',
-                  child: Text(
-                    'Vincular cajero',
-                    style: wk(size: 14, weight: 600),
-                  ),
+                  value: 'cajeros',
+                  child: Text('Cajeros', style: wk(size: 14, weight: 600)),
                 ),
               PopupMenuItem(
                 value: 'salir',

@@ -1,7 +1,7 @@
 import hre from "hardhat";
 
 // Diagnostic: dump recent on-chain activity for the demo contracts.
-const ROUTER = "0xd98869ebf0231ce1a56b145cb83db0ab2b1d382a";
+const ROUTER = "0x5b003974862aa4ad00e09dfcade43abde593bbdc";
 const USDT = "0xc0934b34b2b1654ac5dc41b8a867e1227e03093d";
 const OWNER = "0x3ca0e1d199ef95c2074248613a34a17b90702440";
 

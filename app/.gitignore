@@ -44,3 +44,6 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+
+# Defines de build para VS Code: lleva el project id de Reown
+dart-defines.json

@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:waliki_app/caja_code.dart';
+import 'package:waliki_app/cashier_identity.dart';
 import 'package:waliki_app/main.dart';
 import 'package:waliki_app/session.dart';
 import 'package:waliki_app/skeletons.dart';
+import 'package:waliki_app/vault.dart';
 
 void main() {
+  final seed = newCajaSeed();
+  final identity = deriveCashier(seed);
+
+  setUp(() {
+    Vaults.instance = MemoryVault();
+  });
+
   testWidgets('a fresh install opens on the welcome screen with both roles', (
     tester,
   ) async {
@@ -20,10 +30,16 @@ void main() {
 
   testWidgets('a linked register opens on the PIN gate', (tester) async {
     SharedPreferences.setMockInitialValues({
+      'waliki.schema': Session.schemaVersion,
       'waliki.role': 'cajero',
       'waliki.merchantId': 1,
       'waliki.pin': '4821',
+      'waliki.cashierAddress': identity.address,
     });
+    Vaults.instance = MemoryVault({
+      Vaults.cashierSeedKey: encodeCajaCode(1, seed),
+    });
+
     await tester.pumpWidget(const WalikiApp());
     await tester.pumpAndSettle();
 
@@ -31,35 +47,52 @@ void main() {
     expect(find.text('Caja del comercio #1'), findsOneWidget);
   });
 
-  group('código de caja', () {
-    test('builds and parses a round trip', () {
-      final code = Session.buildCajaCode(7, '4821');
-      expect(code, '74821');
-      final parsed = Session.parseCajaCode(code);
-      expect(parsed?.merchantId, 7);
-      expect(parsed?.pin, '4821');
+  testWidgets('una caja sin su identidad vuelve a vincularse, no al PIN', (
+    tester,
+  ) async {
+    // Android restores preferences from a backup but not the Keystore key the
+    // vault needs. Opening the PIN gate here would give a register that can
+    // never issue a sale and says nothing about why.
+    SharedPreferences.setMockInitialValues({
+      'waliki.schema': Session.schemaVersion,
+      'waliki.role': 'cajero',
+      'waliki.merchantId': 1,
+      'waliki.pin': '4821',
+      'waliki.cashierAddress': identity.address,
+    });
+    Vaults.instance = MemoryVault();
+
+    await tester.pumpWidget(const WalikiApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ingresa el código de caja'), findsOneWidget);
+    expect(find.textContaining('perdió su vinculación'), findsOneWidget);
+  });
+
+  testWidgets('una sesión del router anterior se limpia al arrancar', (
+    tester,
+  ) async {
+    // No schema key: linked before the router was redeployed. That merchantId
+    // now points at somebody else's shop, so the session cannot be trusted.
+    SharedPreferences.setMockInitialValues({
+      'waliki.role': 'cajero',
+      'waliki.merchantId': 1,
+      'waliki.pin': '4821',
+      'waliki.payments.1': '[]',
+      'waliki.rate': '13.50',
     });
 
-    test('splits a run-together code on the last four digits', () {
-      // Two-digit shop: the id must not eat into the PIN.
-      final parsed = Session.parseCajaCode('129090');
-      expect(parsed?.merchantId, 12);
-      expect(parsed?.pin, '9090');
-      // A leading W is still tolerated: older codes and habit.
-      expect(Session.parseCajaCode('W74821')?.merchantId, 7);
-    });
+    await tester.pumpWidget(const WalikiApp());
+    await tester.pumpAndSettle();
 
-    test('still reads codes handed out with a separator', () {
-      expect(Session.parseCajaCode(' w12 : 9090 ')?.merchantId, 12);
-      expect(Session.parseCajaCode('12-9090')?.pin, '9090');
-      expect(Session.parseCajaCode('W7-4821')?.pin, '4821');
-    });
+    expect(find.text('Soy el dueño'), findsOneWidget);
 
-    test('rejects nonsense', () {
-      expect(Session.parseCajaCode('hola'), isNull);
-      expect(Session.parseCajaCode('W0-1234'), isNull);
-      expect(Session.parseCajaCode('W1-12'), isNull);
-    });
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('waliki.role'), isNull);
+    expect(prefs.getInt('waliki.merchantId'), isNull);
+    expect(prefs.getString('waliki.payments.1'), isNull);
+    // The rate survives: it is just the last quote seen, and it is still right
+    expect(prefs.getString('waliki.rate'), '13.50');
   });
 
   testWidgets('every skeleton lays out at phone size and animates', (

@@ -88,11 +88,19 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
 ### Roles (clave para entender el diseño)
 | Rol | ¿Conecta wallet? | Qué hace |
 |-----|------------------|----------|
-| **Dueño** | Sí, una vez | Registra el comercio on-chain y su dirección de cobro (firma con su wallet) |
-| **Cajero** | No — solo PIN | Ingresa Bs → muestra QR → espera la pantalla verde. Ve todo, no toca nada |
+| **Dueño** | Sí | Registra el comercio y su dirección de cobro, y da de alta/baja a sus cajeros (firma con su wallet) |
+| **Cajero** | No — nunca firma ni paga gas | Ingresa Bs → muestra QR → espera la pantalla verde. Ve todo, no toca nada |
 | **Cliente** | Sí | Escanea el QR → conecta → `approve` + `pay` → recibe su comprobante |
 
-Principio: **la wallet se conecta SOLO para firmar** (pagar o registrarse). Para mirar/recibir, nunca.
+Principio: **la wallet se conecta SOLO para firmar** (pagar, registrarse o autorizar una caja). Para
+mirar/recibir, nunca.
+
+**Los cajeros existen en la cadena desde el 12/09/2026** (`ANALISIS-CONTRATOS-V2.md`, Opción B). El
+cajero ya no es "solo un PIN": su app deriva una **identidad** de la semilla del código que le dio el
+dueño (`7-K3NQ-7X2F-PM8T-QWRJ`), el dueño la autoriza con `addCashier`, y el `saleId` de cada venta
+lleva esa dirección en sus primeros 20 bytes — así el router puede rechazar los cobros de una caja
+dada de baja y cada venta queda atribuida sin que el pagador pueda falsearlo. El PIN pasa a ser solo
+el bloqueo local del dispositivo, elegido por el propio cajero.
 
 ## Stack
 - **Contratos**: Solidity 0.8.28 + **Hardhat 2** + OpenZeppelin 5 · red **Base Sepolia** (chainId

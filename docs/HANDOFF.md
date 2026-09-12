@@ -12,14 +12,14 @@ Proyecto (v4)".
 | Página de pago del cliente | ✅ probada con wallets reales (PC + teléfono) | `web/src/pages/Pay.tsx` |
 | Caja (cobro Bs→QR→verde) | ✅ circuito completo probado | `web/src/pages/Caja.tsx` |
 | Alta autoservicio de comercios | ✅ implementada (falta probar con otra wallet) | `web/src/pages/Registro.tsx` |
-| App Waliki (Flutter) | ✅ onboarding por rol, alta de comercio, vinculación de cajeros, caja, historial y reportes con CSV | `app/` |
+| App Waliki (Flutter) | ✅ onboarding por rol, alta de comercio, cajeros on-chain (alta, baja y código de vinculación), caja, historial y reportes por cajero con CSV | `app/` |
 | Mockups de todas las fases | ✅ canvas de diseño + fuentes en el repo | `design/` |
 | Publicación en Vercel | ✅ en línea: **https://waliki-gules.vercel.app** | proyecto `waliki` (root: `web/`) |
 | APK para teléfonos | ⏳ pendiente (requiere Android SDK) | — |
 | Video de respaldo + ensayo | ⏳ pendiente | — |
 
 **Direcciones on-chain (Base Sepolia, chainId 84532)** — en `contracts/deployments/baseSepolia.json`:
-- WalikiRouter: `0xd98869ebf0231ce1a56b145cb83db0ab2b1d382a`
+- WalikiRouter: `0x5b003974862aa4ad00e09dfcade43abde593bbdc`
 - TestUSDT: `0xc0934b34b2b1654ac5dc41b8a867e1227e03093d`
 - Explorador: https://sepolia.basescan.org
 
@@ -47,7 +47,8 @@ cd ../contracts
 npm install && npm test
 ```
 
-Datos del demo: **PIN de caja `1234`** · comercio #1 "Tienda Demo CBBA" · en la app, el QR apunta
+Datos del demo: **PIN `1234` en la caja web** (en la app lo elige el cajero al vincularse) ·
+comercio #1 "Tienda Demo CBBA" · en la app, el QR apunta
 a `WalikiConfig.payBaseUrl` y se edita con el lápiz de la pantalla de cobro (pon la URL que
 imprime Vite como "Network", o la de Vercel cuando exista).
 
@@ -68,7 +69,8 @@ imprime Vite como "Network", o la de Vercel cuando exista).
    (faucet si hace falta) → aprobar → pagar.
 4. La caja se pone **verde sola, con sonido** — disparada por el evento on-chain.
 
-Mismo circuito con la app: `cd app && fvm flutter run -d chrome` → PIN → Cobrar. El QR ya apunta
+Mismo circuito con la app: `cd app && fvm flutter run -d chrome` → vincula la caja con el código que
+da el dueño en **Cajeros → Nueva caja**, elige un PIN → Cobrar. El QR ya apunta
 al sitio publicado; el lápiz de esa pantalla permite cambiarlo si trabajas contra un `npm run dev`
 local.
 

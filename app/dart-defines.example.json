@@ -1,0 +1,12 @@
+{
+  "_comentario": "Copia este archivo a app/dart-defines.json y completa los valores. Ese NO se commitea.",
+
+  "_WALIKI_REOWN_ID": "Project id de Reown (WalletConnect). Sin el, el dueño no puede conectar su billetera en el telefono. Se saca de https://dashboard.reown.com",
+  "WALIKI_REOWN_ID": "",
+
+  "_WALIKI_RPC": "RPC privado de respaldo (Alchemy). OPCIONAL y solo fallback: el publico va primero porque Alchemy limita eth_getLogs a 10 bloques en el plan gratis.",
+  "WALIKI_RPC": "",
+
+  "_WALIKI_BACKEND": "Backend del QR bancario en Bs. Si se omite usa https://waliki.ficct.online",
+  "WALIKI_BACKEND": ""
+}

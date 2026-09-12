@@ -6,7 +6,17 @@ import '../skeletons.dart';
 
 class HistorialScreen extends StatefulWidget {
   final int merchantId;
-  const HistorialScreen({super.key, required this.merchantId});
+
+  /// When set, only the sales this register issued.
+  final String? cashier;
+  final String? titulo;
+
+  const HistorialScreen({
+    super.key,
+    required this.merchantId,
+    this.cashier,
+    this.titulo,
+  });
 
   @override
   State<HistorialScreen> createState() => _HistorialScreenState();
@@ -15,22 +25,37 @@ class HistorialScreen extends StatefulWidget {
 class _HistorialScreenState extends State<HistorialScreen> {
   late Future<List<Payment>> _future;
 
+  /// Filtering here rather than in the RPC query: the cashier is sealed into
+  /// the sale id, which eth_getLogs can only match whole, and the scan for the
+  /// shop already brought every sale back.
+  Future<List<Payment>> _load() {
+    final all = Chain.payments(merchantId: widget.merchantId);
+    final only = widget.cashier?.toLowerCase();
+    if (only == null) return all;
+    return all.then(
+      (list) => [
+        for (final p in list)
+          if (p.cashier == only) p,
+      ],
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    _future = Chain.payments(merchantId: widget.merchantId);
+    _future = _load();
   }
 
   /// Pull to refresh; the builder below renders any failure on its own.
   Future<void> _refresh() async {
-    setState(() => _future = Chain.payments(merchantId: widget.merchantId));
+    setState(() => _future = _load());
     await _future.catchError((Object _) => <Payment>[]);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: WalikiBar(title: 'Historial', back: true),
+      appBar: WalikiBar(title: widget.titulo ?? 'Historial', back: true),
       body: SafeArea(
         child: Column(
           children: [
@@ -122,7 +147,11 @@ class _HistorialScreenState extends State<HistorialScreen> {
                                       ),
                                       const SizedBox(height: 3),
                                       Text(
-                                        'de ${short(p.payer)} · bloque ${p.block}',
+                                        widget.cashier == null
+                                            ? 'de ${short(p.payer)} · caja '
+                                                  '${short(p.cashier)}'
+                                            : 'de ${short(p.payer)} · bloque '
+                                                  '${p.block}',
                                         style: wk(
                                           size: 11,
                                           weight: 500,
