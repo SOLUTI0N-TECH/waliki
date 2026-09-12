@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config.dart';
 
@@ -134,6 +135,107 @@ class Payment {
   DateTime? get date => timestamp == null
       ? null
       : DateTime.fromMillisecondsSinceEpoch(timestamp! * 1000);
+
+  Map<String, dynamic> toJson() => {
+    's': saleId,
+    'p': payer,
+    't': txHash,
+    'a': amount.toString(),
+    'b': block.toString(),
+    if (timestamp != null) 'ts': timestamp,
+  };
+
+  /// Returns null rather than throwing: one bad entry must not cost the whole
+  /// cache, it just falls back to reading that sale from the chain again.
+  static Payment? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final saleId = json['s'];
+    final payer = json['p'];
+    final txHash = json['t'];
+    final amount = BigInt.tryParse('${json['a']}');
+    final block = BigInt.tryParse('${json['b']}');
+    if (saleId is! String ||
+        payer is! String ||
+        txHash is! String ||
+        amount == null ||
+        block == null) {
+      return null;
+    }
+    return Payment(
+      saleId: saleId,
+      payer: payer,
+      txHash: txHash,
+      amount: amount,
+      block: block,
+      timestamp: json['ts'] is int ? json['ts'] as int : null,
+    );
+  }
+}
+
+/// Sales already read from the chain, kept on the device.
+///
+/// Without this, every time the register opens it re-reads the whole history
+/// from the deploy block: 47 windowed `eth_getLogs` calls today, and about
+/// four more for every further day the chain runs. Sequentially that measured
+/// 33 s, and a window refused by the public RPC's rate limit silently costs
+/// real sales. With it the first open pays that once and later ones ask only
+/// for the blocks that appeared since.
+class _PaymentCache {
+  /// How far back to re-read instead of trusting the cache right up to the
+  /// head, so a short reorg cannot leave a sale behind that no longer exists.
+  static const int reorgDepth = 300;
+
+  static String _listKey(int id) => 'waliki.payments.$id';
+  static String _blockKey(int id) => 'waliki.paymentsBlock.$id';
+
+  /// The stored sales and the block they were read up to.
+  static Future<(List<Payment>, BigInt?)> load(int id) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final raw = p.getString(_listKey(id));
+      final upTo = BigInt.tryParse(p.getString(_blockKey(id)) ?? '');
+      if (raw == null || upTo == null) return (const <Payment>[], null);
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return (const <Payment>[], null);
+      final list = <Payment>[];
+      for (final entry in decoded) {
+        final payment = Payment.fromJson(entry);
+        if (payment != null) list.add(payment);
+      }
+      return (list, upTo);
+    } catch (_) {
+      // a corrupt cache is not worth a crash; it just rescans from the deploy
+      return (const <Payment>[], null);
+    }
+  }
+
+  static Future<void> save(int id, List<Payment> list, BigInt upTo) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(
+        _listKey(id),
+        jsonEncode([for (final e in list) e.toJson()]),
+      );
+      await p.setString(_blockKey(id), upTo.toString());
+    } catch (_) {
+      // persistence is optional: the read already succeeded
+    }
+  }
+
+  /// Rewrites the sales without moving the scanned-to mark. Used once the
+  /// block timestamps are resolved, so they are not fetched again next time.
+  static Future<void> update(int id, List<Payment> list) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (p.getString(_blockKey(id)) == null) return;
+      await p.setString(
+        _listKey(id),
+        jsonEncode([for (final e in list) e.toJson()]),
+      );
+    } catch (_) {
+      // persistence is optional
+    }
+  }
 }
 
 class Chain {
@@ -226,15 +328,17 @@ class Chain {
   static Future<List<dynamic>> _scanLogs(
     List<dynamic> topics, {
     bool recentOnly = false,
+    BigInt? fromBlock,
+    BigInt? to,
   }) async {
-    final latest = await blockNumber();
+    final latest = to ?? await blockNumber();
     final range = BigInt.from(_logRange);
     final windows = <List<BigInt>>[];
     if (recentOnly) {
       final from = latest > range ? latest - range : BigInt.zero;
       windows.add([from, latest]);
     } else {
-      var from = BigInt.from(WalikiConfig.deployBlock);
+      var from = fromBlock ?? BigInt.from(WalikiConfig.deployBlock);
       while (from <= latest) {
         var to = from + range;
         if (to > latest) to = latest;
@@ -268,21 +372,51 @@ class Chain {
       '0x${_word(BigInt.from(id))}',
       if (saleId != null) '0x${_wordFromHex(saleId)}',
     ];
-    final logs = await _scanLogs(topics, recentOnly: saleId != null);
-    return [
-      for (final l in logs)
-        Payment(
-          saleId: l['topics'][2] as String,
-          payer: _addr(_wordFromHex(l['topics'][3] as String)),
-          amount: _uint((l['data'] as String).substring(2, 66)),
-          txHash: l['transactionHash'] as String,
-          block: BigInt.parse(
-            (l['blockNumber'] as String).substring(2),
-            radix: 16,
-          ),
-        ),
-    ];
+    // Asking about one sale is a question about right now: it skips the cache
+    // and only looks at recent blocks.
+    if (saleId != null) {
+      return _decodePayments(await _scanLogs(topics, recentOnly: true));
+    }
+
+    final (cached, scannedTo) = await _PaymentCache.load(id);
+    final head = await blockNumber();
+    var from = BigInt.from(WalikiConfig.deployBlock);
+    if (scannedTo != null) {
+      final resume = scannedTo - BigInt.from(_PaymentCache.reorgDepth);
+      if (resume > from) from = resume;
+    }
+    final fresh = _decodePayments(
+      await _scanLogs(topics, fromBlock: from, to: head),
+    );
+
+    // Everything from `from` upwards is re-derived by this scan, so the cache
+    // only contributes what sits below it — a reorged-out sale disappears
+    // instead of lingering. The contract allows one payment per saleId, so
+    // that id is the identity.
+    final merged = <String, Payment>{
+      for (final p in cached)
+        if (p.block < from) p.saleId: p,
+      for (final p in fresh) p.saleId: p,
+    };
+    final list = merged.values.toList()
+      ..sort((a, b) => a.block.compareTo(b.block));
+    await _PaymentCache.save(id, list, head);
+    return list;
   }
+
+  static List<Payment> _decodePayments(List<dynamic> logs) => [
+    for (final l in logs)
+      Payment(
+        saleId: l['topics'][2] as String,
+        payer: _addr(_wordFromHex(l['topics'][3] as String)),
+        amount: _uint((l['data'] as String).substring(2, 66)),
+        txHash: l['transactionHash'] as String,
+        block: BigInt.parse(
+          (l['blockNumber'] as String).substring(2),
+          radix: 16,
+        ),
+      ),
+  ];
 
   /// Every shop registered by this owner.
   ///
@@ -367,7 +501,19 @@ class Chain {
   static Future<List<Payment>> paymentsWithTime({int? merchantId}) async {
     final list = await payments(merchantId: merchantId);
     if (list.isEmpty) return list;
-    final times = await blockTimes(list.map((p) => p.block));
-    return [for (final p in list) p.withTime(times[p.block])];
+    // A block's timestamp never changes, so only the ones still missing cost a
+    // round trip — the rest came back from the cache already resolved.
+    final missing = [
+      for (final p in list)
+        if (p.timestamp == null) p.block,
+    ];
+    if (missing.isEmpty) return list;
+    final times = await blockTimes(missing);
+    final filled = [
+      for (final p in list)
+        p.timestamp == null ? p.withTime(times[p.block]) : p,
+    ];
+    await _PaymentCache.update(merchantId ?? WalikiConfig.merchantId, filled);
+    return filled;
   }
 }

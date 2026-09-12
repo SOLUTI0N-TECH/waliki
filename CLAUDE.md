@@ -140,6 +140,12 @@ necesita ETH de gas; el sonido en móvil requiere un gesto previo del usuario.
 - `contracts/`: Hardhat 2 + `@nomicfoundation/hardhat-toolbox-viem` (tests mocha/chai +
   chai-as-promised con `hre.viem`). Revert strings en español ASCII (sin acentos). Secretos en
   `contracts/.env`.
+- **Historial cacheado en el dispositivo (12/09)**: `Chain.payments()` guardaba nada y releía
+  TODO desde `deployBlock` en cada apertura — 47 ventanas de `eth_getLogs`, +4 por día que pasa,
+  y un 403 por rate-limit costaba ventas en silencio. Ahora guarda las ventas y el último bloque
+  leído (`_PaymentCache`) y solo pide los bloques nuevos, con 300 de solape por reorgs. Medido
+  contra Base Sepolia: **6,6 s → 1,1 s**. Los timestamps de bloque también se cachean (no cambian).
+  ⚠️ NO cambiar a `publicnode` aunque acepte 50.000 bloques: devuelve 2 de 8 logs SIN dar error.
 - **RPC híbrido (01/09)**: el público (`sepolia.base.org`) va PRIMERO — permite `eth_getLogs` de
   10.000 bloques; el endpoint de Alchemy es SOLO fallback (web: `VITE_RPC_URL` →
   `fallback([http(), http(url)])`; app: `--dart-define=WALIKI_RPC`). ⚠️ El plan gratis de Alchemy
