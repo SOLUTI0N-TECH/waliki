@@ -53,9 +53,10 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
 - **Tasa Bs/USDT en vivo** desde `https://paralelo.bo/api/v1/rate` (campo `buy`, CC-BY-4.0 → hay
   que acreditar la fuente en pantalla). **Cacheada, no consultada por cobro**: el endpoint publica
   `Cache-Control: max-age=60` y limita a 60 req/min, así que se sirve la guardada al instante y se
-  refresca detrás (TTL 5 min, `app/lib/rate.dart` y `web/src/lib/rate.ts`). El dueño puede
-  sobrescribirla a mano y eso apaga el auto (`session.rateAuto`). Cotización que **vence** (~15 min),
-  congelada en el QR.
+  refresca detrás (TTL 5 min, `app/lib/rate.dart` y `web/src/lib/rate.ts`). **Solo lectura en caja**
+  (decisión del fundador 11/09/2026): sin origen, sin antigüedad y sin refresco manual — el cajero no
+  decide nada ahí. La última tasa buena queda en `session.rate` como respaldo sin señal. Cotización
+  que **vence** (~15 min), congelada en el QR.
 - **La caja cobra en Bs o en USDT** (switch arriba del monto, `session.usdtMode`). En USDT el monto
   tecleado ES el cobro: el enlace del QR viaja **sin `bs`, sin `r` y sin `exp`** — no hay cotización
   que pueda vencer. `Pay.tsx` ya condicionaba esos parámetros, así que la pasarela lo soporta sola.

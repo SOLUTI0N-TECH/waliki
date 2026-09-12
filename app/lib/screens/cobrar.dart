@@ -46,14 +46,9 @@ class CobrarScreen extends StatefulWidget {
 class _CobrarScreenState extends State<CobrarScreen> {
   _Phase _phase = _Phase.entry;
   String _amount = '';
-  late final TextEditingController _rateCtrl = TextEditingController(
-    text: widget.session.rate,
-  );
   _Sale? _sale;
   Payment? _payment;
   late bool _usdt = widget.session.usdtMode;
-  RateQuote? _quote;
-  bool _rateLoading = false;
   bool _late = false;
   Timer? _clock;
   Timer? _poll;
@@ -72,46 +67,27 @@ class _CobrarScreenState extends State<CobrarScreen> {
     if (!mounted) return;
     if (cached != null) {
       _applyQuote(cached);
-      setState(() => _quote = cached);
+      setState(() {});
     }
     final fresh = await Rate.refresh();
     if (!mounted || fresh == null) return;
     _applyQuote(fresh);
-    setState(() => _quote = fresh);
+    setState(() {});
   }
 
-  /// Writes the market rate into the field — unless the owner has taken over,
-  /// in which case their number stands.
+  /// Stores the market rate. Kept on the device so the register still prices
+  /// a sale when the quote cannot be reached.
   void _applyQuote(RateQuote q) {
-    if (!widget.session.rateAuto) return;
     final v = q.buy.toStringAsFixed(2);
-    if (_rateCtrl.text == v) return;
-    _rateCtrl.text = v;
+    if (widget.session.rate == v) return;
     widget.session.rate = v;
     widget.session.save();
-  }
-
-  /// Asking explicitly also puts the rate back on automatic.
-  Future<void> _refreshRate() async {
-    widget.session.rateAuto = true;
-    await widget.session.save();
-    if (!mounted) return;
-    setState(() => _rateLoading = true);
-    final q = await Rate.refresh(force: true);
-    if (!mounted) return;
-    final use = q ?? _quote;
-    if (use != null) _applyQuote(use);
-    setState(() {
-      _rateLoading = false;
-      if (q != null) _quote = q;
-    });
   }
 
   @override
   void dispose() {
     _clock?.cancel();
     _poll?.cancel();
-    _rateCtrl.dispose();
     super.dispose();
   }
 
@@ -121,7 +97,7 @@ class _CobrarScreenState extends State<CobrarScreen> {
   }
 
   double? get _rate {
-    final v = double.tryParse(_rateCtrl.text.replaceAll(',', '.'));
+    final v = double.tryParse(widget.session.rate.replaceAll(',', '.'));
     return (v != null && v > 0) ? v : null;
   }
 
@@ -258,46 +234,14 @@ class _CobrarScreenState extends State<CobrarScreen> {
                 border: Border.all(color: kLine),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Tasa  Bs',
-                    style: wk(size: 13, weight: 500, color: kInkSoft),
-                  ),
-                  SizedBox(
-                    width: 62,
-                    child: TextField(
-                      controller: _rateCtrl,
-                      textAlign: TextAlign.center,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      style: wk(size: 14.5, weight: 700, tabular: true),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        border: InputBorder.none,
-                      ),
-                      onChanged: (v) {
-                        // Typing here is an override: the live quote stops
-                        // writing over the owner's number.
-                        widget.session.rate = v;
-                        widget.session.rateAuto = false;
-                        widget.session.save();
-                        setState(() {});
-                      },
-                    ),
-                  ),
-                  Text(
-                    '= 1 USDT',
-                    style: wk(size: 13, weight: 500, color: kInkSoft),
-                  ),
-                ],
+              // Read-only: the rate comes from the market on its own, so there
+              // is nothing for the cashier to decide here.
+              child: Text(
+                'Tasa  Bs ${_rate?.toStringAsFixed(2) ?? '—'}  =  1 USDT',
+                style: wk(size: 13.5, weight: 600, tabular: true),
               ),
             ),
-            const SizedBox(height: 7),
-            _rateNote(),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
           ] else
             const SizedBox(height: 10),
           Text(
@@ -335,50 +279,6 @@ class _CobrarScreenState extends State<CobrarScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  /// Credits the source — the data is CC-BY — and shows how old the quote is,
-  /// so the cashier can tell at a glance whether to refresh it.
-  Widget _rateNote() {
-    final q = _quote;
-    final auto = widget.session.rateAuto;
-    if (_rateLoading) {
-      return Text(
-        'Consultando ${Rate.source}…',
-        style: wk(size: 11, weight: 500, color: kInkSoft),
-      );
-    }
-    if (q == null) {
-      return Text(
-        'Tasa fijada a mano',
-        style: wk(size: 11, weight: 500, color: kInkSoft),
-      );
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(
-          child: Text(
-            auto
-                ? '${Rate.source} · ${q.ageLabel}'
-                : 'a mano · ${Rate.source} marca ${q.buy.toStringAsFixed(2)}',
-            overflow: TextOverflow.ellipsis,
-            style: wk(size: 11, weight: 500, color: kInkSoft),
-          ),
-        ),
-        InkWell(
-          onTap: _refreshRate,
-          borderRadius: BorderRadius.circular(999),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            child: Text(
-              auto ? 'actualizar' : 'usar la del mercado',
-              style: wk(size: 11, weight: 700, color: kBrand),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

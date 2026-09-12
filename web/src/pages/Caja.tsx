@@ -5,14 +5,7 @@ import { useBlockNumber, usePublicClient, useReadContract, useWatchContractEvent
 import { formatUnits, parseUnits } from 'viem'
 import { walikiRouterAbi } from '../contracts/waliki'
 import { network } from '../lib/network'
-import {
-  ageLabel,
-  fetchQuote,
-  isStale,
-  RATE_SOURCE,
-  storedQuote,
-  type RateQuote,
-} from '../lib/rate'
+import { fetchQuote, isStale, storedQuote, type RateQuote } from '../lib/rate'
 
 const CHAIN_ID = network.chainId
 const ROUTER = network.router
@@ -128,15 +121,6 @@ export default function Caja() {
     }
   })
   const [quote, setQuote] = useState<RateQuote | null>(() => storedQuote())
-  // Turns false the moment the owner types their own rate, so a refresh
-  // never overwrites a deliberate override.
-  const [rateAuto, setRateAuto] = useState(() => {
-    try {
-      return localStorage.getItem('waliki.rateAuto') !== '0'
-    } catch {
-      return true
-    }
-  })
 
   // The stored quote is already on screen; this only refreshes behind it.
   useEffect(() => {
@@ -151,7 +135,7 @@ export default function Caja() {
   }, [])
 
   useEffect(() => {
-    if (!quote || !rateAuto) return
+    if (!quote) return
     const v = quote.buy.toFixed(2)
     setRate(v)
     try {
@@ -159,7 +143,7 @@ export default function Caja() {
     } catch {
       // persistence is optional
     }
-  }, [quote, rateAuto])
+  }, [quote])
   const [view, setView] = useState<View>({ mode: 'entry' })
   const [history, setHistory] = useState<HistItem[]>([])
 
@@ -291,17 +275,6 @@ export default function Caja() {
     }
   }
 
-  async function applyMarketRate() {
-    // Asking explicitly also puts the rate back on automatic.
-    setRateAuto(true)
-    try {
-      localStorage.setItem('waliki.rateAuto', '1')
-    } catch {
-      // persistence is optional
-    }
-    const q = await fetchQuote()
-    if (q) setQuote(q)
-  }
 
   function cancelSale(expiredSale?: Sale) {
     if (expiredSale) {
@@ -499,37 +472,10 @@ export default function Caja() {
 
       {!usdt && (
         <>
+          {/* Read-only: the rate comes from the market on its own. */}
           <div className="wallet-row">
-            <span className="muted small">Tasa del comercio (Bs por {SYMBOL})</span>
-            <input
-              className="rate-input"
-              inputMode="decimal"
-              value={rate}
-              onChange={(e) => {
-                // Typing here is an override: the live quote stops writing
-                // over the owner's number.
-                setRate(e.target.value)
-                setRateAuto(false)
-                try {
-                  localStorage.setItem('waliki.rate', e.target.value)
-                  localStorage.setItem('waliki.rateAuto', '0')
-                } catch {
-                  // persistence is optional
-                }
-              }}
-            />
-          </div>
-          <div className="rate-note muted small">
-            <span>
-              {quote
-                ? rateAuto
-                  ? `${RATE_SOURCE} · ${ageLabel(quote)}`
-                  : `a mano · ${RATE_SOURCE} marca ${quote.buy.toFixed(2)}`
-                : 'Tasa fijada a mano'}
-            </span>
-            <button type="button" onClick={applyMarketRate}>
-              {rateAuto ? 'actualizar' : 'usar la del mercado'}
-            </button>
+            <span className="muted small">Tasa (Bs por {SYMBOL})</span>
+            <span className="num">{rate}</span>
           </div>
         </>
       )}
