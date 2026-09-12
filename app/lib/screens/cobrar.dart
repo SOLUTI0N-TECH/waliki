@@ -48,7 +48,10 @@ class _CobrarScreenState extends State<CobrarScreen> {
   String _amount = '';
   _Sale? _sale;
   Payment? _payment;
-  late bool _usdt = widget.session.usdtMode;
+
+  /// Every visit to the register starts in USDT: charging in dollars is the
+  /// common case, and a cashier who wants Bs is one tap away.
+  bool _usdt = true;
   bool _late = false;
   Timer? _clock;
   Timer? _poll;
@@ -216,8 +219,6 @@ class _CobrarScreenState extends State<CobrarScreen> {
           _CurrencySwitch(
             usdt: _usdt,
             onChanged: (v) {
-              widget.session.usdtMode = v;
-              widget.session.save();
               // Bs 100 is not $100: clear rather than reinterpret the figure.
               setState(() {
                 _usdt = v;

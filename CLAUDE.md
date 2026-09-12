@@ -57,8 +57,9 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
   (decisión del fundador 11/09/2026): sin origen, sin antigüedad y sin refresco manual — el cajero no
   decide nada ahí. La última tasa buena queda en `session.rate` como respaldo sin señal. Cotización
   que **vence** (~15 min), congelada en el QR.
-- **La caja cobra en Bs o en USDT** (switch arriba del monto, `session.usdtMode`). En USDT el monto
-  tecleado ES el cobro: el enlace del QR viaja **sin `bs`, sin `r` y sin `exp`** — no hay cotización
+- **La caja cobra en Bs o en USDT** (switch arriba del monto). En la app **arranca siempre en USDT**
+  al entrar a Cobrar (decisión del fundador 12/09/2026: es el caso más común); la caja web recuerda
+  la última elección. En USDT el monto tecleado ES el cobro: el enlace del QR viaja **sin `bs`, sin `r` y sin `exp`** — no hay cotización
   que pueda vencer. `Pay.tsx` ya condicionaba esos parámetros, así que la pasarela lo soporta sola.
 - Extras del MVP: registro on-chain con **candado de la dirección de cobro** · red forzada a Base
   Sepolia en la página de pago · faucet de tUSDT integrado · trazabilidad (hash/bloque/
