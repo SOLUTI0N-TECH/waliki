@@ -35,6 +35,12 @@ export class QrService {
       cryptoAmount: dto.cryptoAmount,
       // Store the checksummed form: the DTO accepts any casing
       destinationWallet: getAddress(dto.destinationWallet),
+      // Only a complete pair routes through the contract
+      ...(dto.merchantId !== undefined &&
+        dto.saleId !== undefined && {
+          merchantId: dto.merchantId,
+          saleId: dto.saleId.toLowerCase(),
+        }),
       crypto: { transferred: false },
     });
     this.logger.log(
@@ -77,6 +83,23 @@ export class QrService {
   private async runTransfer(record: QrRecord): Promise<void> {
     const id = record.intent.id;
 
+    const { merchantId, saleId } = record;
+    const throughRouter = merchantId !== undefined && saleId !== undefined;
+
+    // The contract's own record beats a transaction hash: it survives a
+    // restart and answers "was this sale paid", not "did that tx land".
+    if (throughRouter && (await this.blockchain.wasSalePaid(merchantId, saleId))) {
+      record.crypto = {
+        ...record.crypto,
+        transferred: true,
+        ...(record.crypto.pendingTxHash !== undefined && {
+          txHash: record.crypto.pendingTxHash,
+        }),
+      };
+      this.logger.warn(`QR ${id}: la venta ${saleId} ya figura pagada on-chain`);
+      return;
+    }
+
     // An earlier attempt may have timed out while its transaction still landed
     const pending = record.crypto.pendingTxHash;
     if (pending !== undefined && (await this.blockchain.wasMined(pending))) {
@@ -88,13 +111,21 @@ export class QrService {
     }
 
     try {
-      const { txHash } = await this.blockchain.transferTUSDT(
-        record.destinationWallet,
-        record.cryptoAmount,
-        (sentHash) => {
-          record.crypto = { ...record.crypto, pendingTxHash: sentHash };
-        },
-      );
+      const onSent = (sentHash: string) => {
+        record.crypto = { ...record.crypto, pendingTxHash: sentHash };
+      };
+      const { txHash } = throughRouter
+        ? await this.blockchain.payThroughRouter(
+            merchantId,
+            saleId,
+            record.cryptoAmount,
+            onSent,
+          )
+        : await this.blockchain.transferTUSDT(
+            record.destinationWallet,
+            record.cryptoAmount,
+            onSent,
+          );
       record.crypto = { transferred: true, txHash };
       this.logger.log(
         `QR ${id} pagado · ${record.cryptoAmount} tUSDT liquidados (${txHash})`,
@@ -115,6 +146,8 @@ export class QrService {
       ...record.intent,
       cryptoAmount: record.cryptoAmount,
       destinationWallet: record.destinationWallet,
+      ...(record.merchantId !== undefined && { merchantId: record.merchantId }),
+      ...(record.saleId !== undefined && { saleId: record.saleId }),
       transferred: record.crypto.transferred,
       ...(record.crypto.txHash !== undefined && {
         txHash: record.crypto.txHash,

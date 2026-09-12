@@ -7,8 +7,18 @@ automáticamente una cantidad de tUSDT desde su propia wallet a la wallet de des
 ```
 cliente → POST /qr ──────────► Yesca crea el QR (base64)
 cliente → GET /qr/:id/status ─► Yesca dice "completed"
-                              └► transferencia ERC-20 de tUSDT → destinationWallet
+                              └► WalikiRouter.pay() → tUSDT a la wallet del comercio
+                                 (emite PaymentReceived: la venta entra al historial)
 ```
+
+**Por qué el router y no un `transfer` pelado.** El historial, los reportes y el CSV
+de la app se construyen leyendo el evento `PaymentReceived` del contrato. Un
+`transfer` de ERC-20 solo emite el `Transfer` del token, así que la venta cobrada
+por QR quedaría invisible en el producto. Liquidando por `pay()` una venta en Bs
+es indistinguible de una en USDT: mismo evento, mismo historial, misma prueba.
+
+Si el `POST /qr` llega **sin** `merchantId` y `saleId`, el backend cae al `transfer`
+directo de antes — compatible hacia atrás, pero esa venta no aparece en el historial.
 
 > **Prototipo de buildathon.** Sin base de datos: los QR viven en un `Map` en memoria y se
 > pierden al reiniciar el proceso. A diferencia del resto de Waliki, este backend **sí custodia
@@ -42,6 +52,7 @@ una variable del `.env`, el server no arranca y te dice cuál.
 | `WALLET_PRIVATE_KEY` | **sí** | Clave de la wallet que paga los tUSDT. **Solo testnet** |
 | `TUSDT_CONTRACT_ADDRESS` | **sí** | Contrato ERC-20 del tUSDT. `.env.example` ya trae el de Base Sepolia |
 | `TUSDT_DECIMALS` | no (6) | Fallback si `decimals()` del contrato falla |
+| `WALIKI_ROUTER_ADDRESS` | no | WalikiRouter. Por defecto el desplegado en Base Sepolia; solo hay que tocarlo si se redespliega |
 
 El `.env` está en el `.gitignore` de la raíz: nunca se commitea. El token y la clave privada
 no se loguean ni aparecen en ninguna respuesta.
@@ -59,7 +70,9 @@ Todo corre en **Base Sepolia** (chainId 84532), donde ya viven los contratos del
 Ese valor ya viene puesto en `.env.example`. Cambiará el día que se redesplieguen los contratos
 actualizados; para el backend eso es editar una línea del `.env`, nada más.
 
-**Financiar la wallet del backend** — necesita tUSDT para pagar y ETH de Base Sepolia para el gas:
+**Financiar la wallet del backend** — necesita tUSDT para pagar y ETH de Base Sepolia para el gas.
+La primera venta liquidada por el router gasta una transacción extra aprobándolo; después reusa
+esa aprobación.
 
 ```bash
 cd ../contracts
@@ -89,7 +102,9 @@ historial.
 | Campo | Requerido | Notas |
 |---|---|---|
 | `cryptoAmount` | **sí** | tUSDT a transferir cuando se pague el QR |
-| `destinationWallet` | **sí** | Dirección `0x…` que recibe los tUSDT |
+| `destinationWallet` | **sí** | Dirección `0x…` que recibe los tUSDT. Con `merchantId`, manda la dirección de cobro que el comercio registró on-chain |
+| `merchantId` | no | Comercio en el contrato. Con `saleId`, liquida por `WalikiRouter.pay()` |
+| `saleId` | no | `bytes32` (`0x` + 64 hex) elegido por quien llama. El contrato lo guarda y rechaza un segundo pago del mismo, que es lo que hace segura la reintentona |
 | `amount` | no | Monto fiat (Bs), hasta 2 decimales. Si se omite → QR de monto abierto |
 | `description` | no | Concepto del cobro |
 | `additionalData` | no | Dato libre |
@@ -117,7 +132,15 @@ curl http://localhost:3000/qr/<id>/status
 ```
 
 Consulta el estado real en Yesca. Si es `completed` y todavía no se pagó la cripto, dispara la
-transferencia y responde con `transferred: true` y el `txHash`. Si la transferencia falla,
+liquidación y responde con `transferred: true` y el `txHash`.
+
+⚠️ **`completed` no es lo mismo que cobrado.** `completed` dice que el banco recibió los
+bolivianos; `transferred` dice que los tUSDT llegaron al comercio. La app pone la pantalla
+verde con `transferred`, no con `completed`: entre uno y otro Waliki todavía debe la plata.
+
+Antes de pagar se consulta `paidAmount(merchantId, saleId)` en el contrato. Es mejor
+idempotencia que un hash de transacción: sobrevive a un reinicio y responde "¿esta venta
+está pagada?" en vez de "¿esa transacción entró?". Si la transferencia falla,
 responde igual con el estado del QR más `lastError`, y **reintenta en la próxima consulta**.
 
 ```json

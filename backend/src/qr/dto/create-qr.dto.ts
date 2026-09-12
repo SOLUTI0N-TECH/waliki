@@ -3,8 +3,10 @@ import {
   IsEthereumAddress,
   IsISO8601,
   IsNumber,
+  IsInt,
   IsOptional,
   IsPositive,
+  Matches,
   IsString,
   MaxLength,
   Min,
@@ -45,4 +47,21 @@ export class CreateQrDto {
   /// validate the EIP-55 checksum, only the shape.
   @IsEthereumAddress()
   destinationWallet!: string;
+
+  /// Shop this sale belongs to. With it (and saleId) the settlement goes
+  /// through WalikiRouter, so the sale emits PaymentReceived and shows up in
+  /// the app's history; without it, it falls back to a plain transfer to
+  /// destinationWallet.
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  merchantId?: number;
+
+  /// bytes32 chosen by the caller. The contract stores it and refuses a second
+  /// payment for the same one, which is what makes a retry safe.
+  @IsOptional()
+  @Matches(/^0x[0-9a-fA-F]{64}$/, {
+    message: 'saleId debe ser bytes32 (0x seguido de 64 caracteres hex)',
+  })
+  saleId?: string;
 }

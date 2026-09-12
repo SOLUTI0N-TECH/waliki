@@ -10,8 +10,10 @@ import {
   parseUnits,
 } from 'ethers';
 import { ERC20_ABI, type Erc20 } from './erc20';
+import { ROUTER_ABI, type WalikiRouter } from './router';
 
 const WAIT_CONFIRMATIONS = 1;
+const MAX_UINT256 = (1n << 256n) - 1n;
 const WAIT_TIMEOUT_MS = 120_000;
 
 function reason(error: unknown): string {
@@ -26,6 +28,8 @@ export class BlockchainService {
   private readonly provider: JsonRpcProvider;
   private readonly wallet: Wallet;
   private readonly token: Erc20;
+  private readonly router: WalikiRouter;
+  private readonly routerAddress: string;
   private readonly fallbackDecimals: number;
   private decimals?: number;
   /// Transfers are serialized: two concurrent sends from the same wallet would
@@ -52,6 +56,14 @@ export class BlockchainService {
       ERC20_ABI,
       this.wallet,
     ) as unknown as Erc20;
+    this.routerAddress = getAddress(
+      config.getOrThrow<string>('WALIKI_ROUTER_ADDRESS'),
+    );
+    this.router = new Contract(
+      this.routerAddress,
+      ROUTER_ABI,
+      this.wallet,
+    ) as unknown as WalikiRouter;
   }
 
   /// Public address of the paying wallet — safe to log, unlike its key.
@@ -95,6 +107,74 @@ export class BlockchainService {
       }
       return { txHash: tx.hash };
     });
+  }
+
+  /// Settles through WalikiRouter so the sale emits `PaymentReceived` and the
+  /// app's history, reports and CSV can see it. The router moves the tUSDT to
+  /// the payout address the merchant registered on-chain, so the funds land
+  /// where the shop owner said they should — not wherever the caller asked.
+  async payThroughRouter(
+    merchantId: number,
+    saleId: string,
+    amount: number,
+    onSent?: (txHash: string) => void,
+  ): Promise<{ txHash: string }> {
+    if (!Number.isInteger(merchantId) || merchantId <= 0) {
+      throw new Error(`merchantId inválido: ${merchantId}`);
+    }
+    if (!/^0x[0-9a-fA-F]{64}$/.test(saleId)) {
+      throw new Error(`saleId inválido: debe ser bytes32 (0x + 64 hex)`);
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error(`Monto de tUSDT inválido: ${amount}`);
+    }
+
+    return this.enqueue(async () => {
+      const decimals = await this.getDecimals();
+      const units = parseUnits(amount.toFixed(decimals), decimals);
+      const id = BigInt(merchantId);
+
+      // The router pulls with transferFrom, so it needs an allowance. Approving
+      // once and reusing it keeps a sale down to a single transaction.
+      const allowance = await this.token.allowance(
+        this.wallet.address,
+        this.routerAddress,
+      );
+      if (allowance < units) {
+        this.logger.log(
+          `Aprobando al router ${this.routerAddress} para mover tUSDT`,
+        );
+        const approval = await this.token.approve(
+          this.routerAddress,
+          MAX_UINT256,
+        );
+        await approval.wait(WAIT_CONFIRMATIONS, WAIT_TIMEOUT_MS);
+      }
+
+      const tx = await this.router.pay(id, saleId, units);
+      onSent?.(tx.hash);
+      this.logger.log(
+        `Pago de ${amount} tUSDT al comercio ${merchantId} enviado (${tx.hash})`,
+      );
+
+      const receipt = await tx.wait(WAIT_CONFIRMATIONS, WAIT_TIMEOUT_MS);
+      if (!receipt || receipt.status !== 1) {
+        throw new Error(`La transacción ${tx.hash} no llegó a confirmarse`);
+      }
+      return { txHash: tx.hash };
+    });
+  }
+
+  /// The contract's own record of a sale. A better idempotency check than a
+  /// transaction hash: it answers "was this sale paid" rather than "did that
+  /// transaction land", so it holds even across a restart.
+  async wasSalePaid(merchantId: number, saleId: string): Promise<boolean> {
+    try {
+      const paid = await this.router.paidAmount(BigInt(merchantId), saleId);
+      return paid > 0n;
+    } catch {
+      return false;
+    }
   }
 
   /// Did a previously sent transaction land after all? Guards against paying

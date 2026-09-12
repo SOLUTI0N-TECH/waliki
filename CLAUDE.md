@@ -10,7 +10,11 @@
 
 ## ⚠️ Regla de oro (innegociable)
 **El riel de pagos de Waliki nunca custodia dinero**: los USDT viajan directo del pagador a la
-billetera del comerciante; la plataforma solo lee la cadena, sugiere y registra. Únicas excepciones
+billetera del comerciante; la plataforma solo lee la cadena, sugiere y registra.
+**Excepción viva desde el 12/09/2026 — el cobro en Bs por QR bancario (`backend/`) SÍ custodia**:
+el cliente paga bolivianos a la pasarela Yesca y el comercio recibe tUSDT de la wallet del backend.
+No es el pago directo cliente→comercio. Es una rampa de exploración, y así hay que presentarla:
+ante "¿quién tiene la plata?", USDT = nadie más que las partes; Bs = Waliki, en el medio. Únicas excepciones
 previstas en el plan (NO en la Fase 1): el escrow de la Fase 3 (ejecutado por contrato público) y la
 rampa de la Fase 2 (solo vía socios regulados o registro PSAV, previa consulta legal). Si algún
 código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
@@ -44,9 +48,15 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
 - Transversal: historial verificado → puntaje → microcrédito con repago automático (moat; pendiente
   ratificación del equipo).
 
-## Alcance del MVP Fase 1 (Buildathon) — SIN BACKEND
-- **Sin backend**: la cadena es la base de datos; el navegador lee los eventos por RPC (viem).
-  WhatsApp, servicio de tasa P2P y PDF se difieren a la fase comercial post-evento.
+## Alcance del MVP Fase 1 (Buildathon)
+- **El riel cripto no tiene backend**: la cadena es la base de datos; el navegador y la app leen
+  los eventos por RPC. WhatsApp y PDF se difieren a la fase comercial post-evento.
+- **`backend/` (12/09/2026, de Daniel)**: NestJS desplegado en `https://waliki.ficct.online`.
+  Emite el QR bancario en Bs vía Yesca y, cuando la pasarela lo marca pagado, liquida en tUSDT
+  llamando a `WalikiRouter.pay()` — así la venta emite `PaymentReceived` y entra al historial
+  igual que una venta en USDT. Store **en memoria**: si el proceso se reinicia, los QR en vuelo
+  responden 404. `POST /qr` **no pide autenticación**: cualquiera puede pedir un QR de Bs 0,01
+  con `cryptoAmount` 500 y vaciar la wallet del backend (es testnet, pero conviene saberlo).
   ⚠️ **Excepción explícita (11/09/2026, pedido del usuario)**: `backend/` es un **prototipo
   aparte** que NO forma parte de la pasarela ni del demo. Es la exploración del camino inverso
   (QR bancario en Bs → liquidación automática en tUSDT) y **sí custodia fondos**: su wallet paga
@@ -62,7 +72,11 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
   (decisión del fundador 11/09/2026): sin origen, sin antigüedad y sin refresco manual — el cajero no
   decide nada ahí. La última tasa buena queda en `session.rate` como respaldo sin señal. Cotización
   que **vence** (~15 min), congelada en el QR.
-- **La caja cobra en Bs o en USDT** (switch arriba del monto). En la app **arranca siempre en USDT**
+- **La caja cobra en Bs o en USDT** (switch arriba del monto). **Son dos rieles distintos**: en
+  USDT el cliente firma desde su billetera y el QR es un enlace a la pagina de pago; en Bs el QR
+  lo emite `backend/` (imagen PNG en base64) y la app consulta el estado cada 3 s. La pantalla
+  verde en Bs espera `transferred`, no `completed`: el banco puede tener los bolivianos mientras
+  el comercio todavia no tiene los tUSDT. En la app **arranca siempre en USDT**
   al entrar a Cobrar (decisión del fundador 12/09/2026: es el caso más común); la caja web recuerda
   la última elección. En USDT el monto tecleado ES el cobro: el enlace del QR viaja **sin `bs`, sin `r` y sin `exp`** — no hay cotización
   que pueda vencer. `Pay.tsx` ya condicionaba esos parámetros, así que la pasarela lo soporta sola.
@@ -101,6 +115,8 @@ waliki/
                #   POST /qr crea el QR fiat en la Yesca API; GET /qr/:id/status consulta y,
                #   si está "completed", transfiere tUSDT desde la wallet del backend.
                #   Store en memoria (Map), sin DB. Ver backend/README.md
+  backend/     # NestJS: QR bancario en Bs (Yesca) + liquidacion en tUSDT por router.pay()
+               #   Desplegado en https://waliki.ficct.online · store en memoria · SI custodia
   design/brand/ # LOGO OFICIAL (09/09/2026): logo-source.jpg + symbol.png y lockup.png
                #   con fondo recortado. Paleta muestreada del archivo: violeta #6D2FF8,
                #   indigo #3D32F1, azul #0072EF, cian #03BAE5, teal #33D0D4, navy #031740.

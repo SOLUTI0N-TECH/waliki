@@ -13,6 +13,10 @@ export interface QrRecord {
   intent: YescaIntent;
   cryptoAmount: number;
   destinationWallet: string;
+  /// Present when the sale settles through WalikiRouter instead of a plain
+  /// transfer. Both travel together or not at all.
+  merchantId?: number;
+  saleId?: string;
   crypto: CryptoState;
 }
 
@@ -20,6 +24,8 @@ export interface QrRecord {
 export interface QrResponse extends YescaIntent {
   cryptoAmount: number;
   destinationWallet: string;
+  merchantId?: number;
+  saleId?: string;
   transferred: boolean;
   txHash?: string;
   lastError?: string;

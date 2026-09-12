@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../chain.dart';
 import '../config.dart';
+import '../qr_service.dart';
 import '../rate.dart';
 import '../session.dart';
 import '../ui.dart';
@@ -49,6 +50,14 @@ class _CobrarScreenState extends State<CobrarScreen> {
   _Sale? _sale;
   Payment? _payment;
 
+  /// Set for a sale charged in Bs: the bank QR the backend issued, and the
+  /// image it came with. Null for the on-chain USDT rail.
+  FiatQr? _fiat;
+  Uint8List? _qrImage;
+  bool _creating = false;
+  String? _error;
+  Merchant? _merchant;
+
   /// Every visit to the register starts in USDT: charging in dollars is the
   /// common case, and a cashier who wants Bs is one tap away.
   bool _usdt = true;
@@ -61,10 +70,22 @@ class _CobrarScreenState extends State<CobrarScreen> {
   void initState() {
     super.initState();
     _syncRate();
+    _loadMerchant();
   }
 
   /// Shows the stored quote at once, then refreshes behind it. A sale never
   /// waits on the network.
+  /// The payout address the shop registered on-chain, warmed up so pressing
+  /// Cobrar does not also have to wait for a round trip.
+  Future<void> _loadMerchant() async {
+    try {
+      final merchant = await Chain.merchant(widget.merchantId);
+      if (mounted) _merchant = merchant;
+    } catch (_) {
+      // not fatal: _cobrar fetches it again when it needs it
+    }
+  }
+
   Future<void> _syncRate() async {
     final cached = await Rate.load();
     if (!mounted) return;
@@ -129,7 +150,8 @@ class _CobrarScreenState extends State<CobrarScreen> {
     });
   }
 
-  void _cobrar() {
+  Future<void> _cobrar() async {
+    if (_creating) return;
     final typed = _typed;
     final rate = _rate;
     final units = _units(typed, rate);
@@ -137,19 +159,69 @@ class _CobrarScreenState extends State<CobrarScreen> {
     final rnd = Random.secure();
     final id =
         '0x${List.generate(32, (_) => rnd.nextInt(256).toRadixString(16).padLeft(2, '0')).join()}';
-    // Only a Bs sale carries a quote, so only a Bs sale gets a deadline.
-    final exp = _usdt
-        ? null
-        : DateTime.now().millisecondsSinceEpoch ~/ 1000 +
-              WalikiConfig.quoteMinutes * 60;
-    _sale = _Sale(id, units, _usdt ? null : typed, _usdt ? null : rate, exp);
+
+    // In USDT the customer signs the payment from their own wallet: the QR is
+    // a link to the payment page and nothing has to be issued for it.
+    if (_usdt) {
+      _sale = _Sale(id, units, null, null, null);
+      _startWaiting();
+      return;
+    }
+
+    // In Bs the bank QR is issued by the backend, which releases the tUSDT to
+    // the shop once the bank confirms the transfer.
+    setState(() {
+      _creating = true;
+      _error = null;
+    });
+    try {
+      final merchant = _merchant ?? await Chain.merchant(widget.merchantId);
+      if (!mounted) return;
+      _merchant = merchant;
+      final (qr, image) = await QrService.create(
+        bs: typed!,
+        units: units,
+        destinationWallet: merchant.payout,
+        merchantId: widget.merchantId,
+        saleId: id,
+        description: merchant.displayName,
+      );
+      if (!mounted) return;
+      _fiat = qr;
+      _qrImage = image;
+      // The gateway sets the deadline; fall back to ours if it does not.
+      final expiry =
+          qr.expiresAt ??
+          DateTime.now().add(
+            const Duration(minutes: WalikiConfig.quoteMinutes),
+          );
+      _sale = _Sale(
+        id,
+        units,
+        typed,
+        rate,
+        expiry.millisecondsSinceEpoch ~/ 1000,
+      );
+      _startWaiting();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _creating = false;
+        _error = error is QrServiceException
+            ? error.message
+            : 'No se pudo generar el QR.';
+      });
+    }
+  }
+
+  void _startWaiting() {
+    _creating = false;
     _phase = _Phase.qr;
-    if (exp != null) {
+    if (_sale?.exp != null) {
       _clock = Timer.periodic(const Duration(seconds: 1), (_) {
         setState(() => _now = DateTime.now().millisecondsSinceEpoch ~/ 1000);
       });
     }
-    // Green by polling paidAmount — same double-road philosophy as the web caja
     _poll = Timer.periodic(const Duration(seconds: 3), (_) => _check());
     setState(() {});
   }
@@ -157,6 +229,33 @@ class _CobrarScreenState extends State<CobrarScreen> {
   Future<void> _check() async {
     final sale = _sale;
     if (sale == null || _phase != _Phase.qr) return;
+
+    final fiat = _fiat;
+    if (fiat != null) {
+      try {
+        final next = await QrService.status(fiat.id);
+        if (!mounted || _phase != _Phase.qr) return;
+        // Green only once the tUSDT actually reached the shop. A `completed`
+        // on its own means the bank has the bolivianos and Waliki still owes
+        // the dollars — not a sale the cashier should wave through.
+        if (next.transferred) {
+          final exp = sale.exp;
+          _late =
+              exp != null &&
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 > exp;
+          _phase = _Phase.paid;
+          _poll?.cancel();
+          _clock?.cancel();
+          HapticFeedback.heavyImpact();
+          SystemSound.play(SystemSoundType.alert);
+        }
+        setState(() => _fiat = next);
+      } catch (_) {
+        // transient: the backend retries the settlement on the next poll
+      }
+      return;
+    }
+
     try {
       final paid = await Chain.paidAmount(widget.merchantId, sale.id);
       if (paid > BigInt.zero && mounted && _phase == _Phase.qr) {
@@ -192,6 +291,10 @@ class _CobrarScreenState extends State<CobrarScreen> {
       _amount = '';
       _sale = null;
       _payment = null;
+      _fiat = null;
+      _qrImage = null;
+      _error = null;
+      _creating = false;
       _late = false;
     });
   }
@@ -274,9 +377,17 @@ class _CobrarScreenState extends State<CobrarScreen> {
           const Spacer(),
           _AmountKeypad(onKey: _key),
           const SizedBox(height: 16),
+          if (_error != null) ...[
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: wk(size: 12.5, weight: 600, color: kDanger, height: 1.35),
+            ),
+            const SizedBox(height: 10),
+          ],
           PrimaryButton(
-            'Cobrar — generar QR',
-            onTap: units != null ? _cobrar : null,
+            _creating ? 'Generando QR…' : 'Cobrar — generar QR',
+            onTap: (units != null && !_creating) ? _cobrar : null,
           ),
         ],
       ),
@@ -327,11 +438,20 @@ class _CobrarScreenState extends State<CobrarScreen> {
                 ),
               ],
             ),
-            child: QrImageView(data: url.toString(), size: 232),
+            child: _qrImage != null
+                ? Image.memory(
+                    _qrImage!,
+                    width: 232,
+                    height: 232,
+                    gaplessPlayback: true,
+                  )
+                : QrImageView(data: url.toString(), size: 232),
           ),
           const SizedBox(height: 12),
           Text(
-            'El cliente escanea con su cámara',
+            _fiat != null
+                ? 'El cliente escanea con la app de su banco'
+                : 'El cliente escanea con su cámara',
             textAlign: TextAlign.center,
             style: wk(size: 12.5, weight: 500, color: kInkSoft),
           ),
@@ -344,7 +464,11 @@ class _CobrarScreenState extends State<CobrarScreen> {
                 const SizedBox(width: 11),
                 Expanded(
                   child: Text(
-                    'Esperando el pago…',
+                    // Between the bank confirming and the tUSDT landing there
+                    // is a real gap: say so instead of leaving it as waiting.
+                    _fiat?.completed == true
+                        ? 'Pago recibido — liberando USDT…'
+                        : 'Esperando el pago…',
                     style: wk(size: 14.5, weight: 700),
                   ),
                 ),
@@ -363,6 +487,14 @@ class _CobrarScreenState extends State<CobrarScreen> {
               ],
             ),
           ),
+          if (_fiat?.lastError != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Reintentando la liquidación…',
+              textAlign: TextAlign.center,
+              style: wk(size: 11.5, weight: 600, color: kAmber),
+            ),
+          ],
           if (expired) ...[
             const SizedBox(height: 14),
             PrimaryButton('Generar un QR nuevo', onTap: _reset),
@@ -492,12 +624,20 @@ class _CobrarScreenState extends State<CobrarScreen> {
                       children: [
                         _receiptRow(
                           'Pagó',
-                          p != null ? short(p.payer) : 'verificado on-chain',
+                          p != null
+                              ? short(p.payer)
+                              : _fiat != null
+                              ? 'QR bancario'
+                              : 'verificado on-chain',
                         ),
                         const SizedBox(height: 9),
                         _receiptRow(
                           'Transacción',
-                          p != null ? short(p.txHash) : 'confirmada',
+                          p != null
+                              ? short(p.txHash)
+                              : _fiat?.txHash != null
+                              ? short(_fiat!.txHash!)
+                              : 'confirmada',
                         ),
                         const SizedBox(height: 9),
                         _receiptRow(
