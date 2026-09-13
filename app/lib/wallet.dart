@@ -74,6 +74,10 @@ class Wallet {
     modal.onModalConnect.subscribe(_onConnect);
     modal.onModalDisconnect.subscribe(_onDisconnect);
     await _pinChain();
+    // A session restored from disk fires no connect event — that only happens
+    // for a fresh pairing. Without this, screens listening to `connection`
+    // would show "disconnected" for a wallet that is right there.
+    if (isConnected) connection.value = address;
   }
 
   /// Pins AppKit's selected chain to Waliki's network.
@@ -101,6 +105,25 @@ class Wallet {
   }
 
   void _onDisconnect(ModalDisconnect? event) => connection.value = null;
+
+  /// The single entry point for every screen that is about to sign.
+  ///
+  /// It exists because `isConnected` lies after a restart: it reads `_modal`,
+  /// which is process state, while the WalletConnect session itself lives on
+  /// disk and outlives the app. A screen that checks the flag on its own sees
+  /// "not connected" for a wallet that is still perfectly paired, and silently
+  /// degrades — that is exactly how signing ended up in the browser.
+  ///
+  /// init() restores the stored session; only if there is really none does the
+  /// owner get asked. Returns the connected address, or null if they dismissed
+  /// the sheet.
+  Future<String?> ensureConnected(BuildContext context) async {
+    await init(context);
+    if (isConnected) return address;
+    if (!context.mounted) return null;
+    await openModal(context);
+    return address;
+  }
 
   Future<void> openModal(BuildContext context) async {
     await init(context);
@@ -234,3 +257,49 @@ String encodeRemoveCashier({
   required int merchantId,
   required String cashier,
 }) => '0x$selRemoveCashier${abiWordInt(merchantId)}${abiWordHex(cashier)}';
+
+/// Turns whatever the wallet threw into something a shopkeeper can act on.
+///
+/// Everything below the wallet — WalletConnect, MetaMask, Cronet, the JVM —
+/// reports failures as stack traces. Printing one of those on a cash register
+/// screen tells the owner nothing and hides the cases they could actually fix
+/// themselves, which are most of them.
+String walletErrorMessage(Object error) {
+  final raw = error.toString();
+
+  if (RegExp(
+    r'reject|denied|denegad|rechaz',
+    caseSensitive: false,
+  ).hasMatch(raw)) {
+    return 'Rechazaste la firma en tu billetera. Puedes intentarlo de nuevo.';
+  }
+  // The wallet could not validate the TLS certificate of its own services.
+  // Almost always the network is intercepting HTTPS, or the phone clock is off.
+  if (RegExp(
+    r'CERT_|certificate|CERT_AUTHORITY',
+    caseSensitive: false,
+  ).hasMatch(raw)) {
+    return 'Tu billetera no pudo conectarse de forma segura. Suele ser la red '
+        'WiFi o la hora del teléfono: prueba con datos móviles y revisa que la '
+        'fecha y hora estén en automático.';
+  }
+  if (RegExp(
+    r'ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|SocketException|timeout|timed out',
+    caseSensitive: false,
+  ).hasMatch(raw)) {
+    return 'Tu billetera se quedó sin conexión. Revisa la red e intenta otra vez.';
+  }
+  if (RegExp(
+    r'insufficient funds|gas required',
+    caseSensitive: false,
+  ).hasMatch(raw)) {
+    return 'Te falta ETH de Base Sepolia en la billetera para pagar el gas.';
+  }
+  if (RegExp(r'No hay billetera|session', caseSensitive: false).hasMatch(raw)) {
+    return 'Se perdió la conexión con tu billetera. Vuelve a conectarla.';
+  }
+
+  // Unknown: keep it to one readable line instead of a whole stack trace.
+  final firstLine = raw.split('\n').first.trim();
+  return firstLine.length > 140 ? '${firstLine.substring(0, 140)}…' : firstLine;
+}

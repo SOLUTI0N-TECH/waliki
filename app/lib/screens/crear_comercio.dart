@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -8,6 +9,7 @@ import '../config.dart';
 import '../session.dart';
 import '../ui.dart';
 import '../wallet.dart';
+import '../wallet_gate.dart';
 
 enum _Step { form, waiting, done }
 
@@ -63,10 +65,24 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
       _before = {};
     }
 
-    // With a wallet connected we sign right here; otherwise we hand the
-    // prefilled form to the web page, which is already proven to work.
-    _inApp = Wallet.instance.isConnected;
+    // On a phone the signature always happens here. The browser is only for
+    // web, where AppKit has no implementation at all -- it used to be the
+    // fallback whenever `isConnected` said false, which after every restart it
+    // wrongly did, and the owner was thrown into Chrome to redo the same form.
+    _inApp = !kIsWeb;
     if (_inApp) {
+      if (!mounted) return;
+      final problema = await requireWallet(context, widget.session);
+      if (problema != null) {
+        if (mounted) {
+          setState(() {
+            _step = _Step.form;
+            _error = problema;
+          });
+        }
+        return;
+      }
+      if (!mounted) return;
       try {
         await Wallet.instance.registerMerchant(
           payout: _payout.text.trim(),
@@ -76,7 +92,7 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
         if (mounted) {
           setState(() {
             _step = _Step.form;
-            _error = 'La billetera rechazo o no pudo firmar: $e';
+            _error = walletErrorMessage(e);
           });
         }
         return;
@@ -181,11 +197,11 @@ class _CrearComercioScreenState extends State<CrearComercioScreen> {
         PrimaryButton('Firmar en mi billetera', onTap: _valid ? _firmar : null),
         const SizedBox(height: 10),
         Text(
-          Wallet.instance.isConnected
-              ? 'Tu billetera te pedirá aprobar la transacción. Al confirmarse, '
-                    'la app detecta tu comercio sola.'
-              : 'Se abrirá Waliki web con estos datos ya cargados. Firmas ahí con '
-                    'tu billetera y vuelves: la app detecta tu comercio sola.',
+          kIsWeb
+              ? 'Se abrirá Waliki web con estos datos ya cargados. Firmas ahí con '
+                    'tu billetera y vuelves: la app detecta tu comercio sola.'
+              : 'Tu billetera te pedirá aprobar la transacción. Al confirmarse, '
+                    'la app detecta tu comercio sola.',
           textAlign: TextAlign.center,
           style: wk(size: 12, weight: 500, color: kInkSoft, height: 1.5),
         ),

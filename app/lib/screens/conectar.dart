@@ -9,9 +9,11 @@ import 'mis_comercios.dart';
 
 /// The owner links their wallet to this device.
 ///
-/// On mobile this opens the real wallet over WalletConnect. On web (where the
-/// AppKit package has no implementation) it falls back to pasting the public
-/// address — enough to read, since signing always happens in the wallet.
+/// On mobile the only way in is the real wallet over WalletConnect: an owner
+/// has to be able to sign, and every signing screen depends on there being a
+/// session. On web, where the AppKit package has no implementation at all,
+/// pasting the public address is the only thing available — reading works and
+/// signing goes through the web page.
 class ConectarScreen extends StatefulWidget {
   final Session session;
   const ConectarScreen({super.key, required this.session});
@@ -32,18 +34,21 @@ class _ConectarScreenState extends State<ConectarScreen> {
   void initState() {
     super.initState();
     Wallet.instance.connection.addListener(_onWalletConnection);
-    if (!kIsWeb) {
-      // Warm the modal up so the first tap is instant
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        try {
-          await Wallet.instance.init(context);
-          if (mounted) setState(() => _walletReady = true);
-        } catch (_) {
-          // no wallet support on this platform: the paste flow still works
-          if (mounted) setState(() => _walletFailed = true);
-        }
-      });
-    }
+    if (!kIsWeb) _prepararBilletera();
+  }
+
+  /// Warms the modal up so the first tap is instant. Retryable: a flaky relay
+  /// on the first attempt used to leave the screen in its degraded state for
+  /// good, with no way back other than restarting the app.
+  void _prepararBilletera() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await Wallet.instance.init(context);
+        if (mounted) setState(() => _walletReady = true);
+      } catch (_) {
+        if (mounted) setState(() => _walletFailed = true);
+      }
+    });
   }
 
   @override
@@ -139,10 +144,12 @@ class _ConectarScreenState extends State<ConectarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Show the button as soon as we know the platform supports it; it stays
-    // disabled for the second or two WalletConnect needs to start up, instead
-    // of the layout jumping from "paste an address" to a button.
-    final showWalletButton = !kIsWeb && !_walletFailed;
+    // On a phone WalletConnect is the only way in. Pasting an address used to
+    // sit right next to it, one tap away, and whoever took it ended up with a
+    // shop they could never sign for: no session, every signature bounced to
+    // the browser, and nothing said so. The field survives only on web, where
+    // AppKit has no implementation and it is the sole option.
+    final soloDireccion = kIsWeb;
     final walletUsable = _walletReady || Wallet.instance.available;
     return Scaffold(
       appBar: const WalikiBar(title: 'Conectar billetera', back: true),
@@ -181,39 +188,40 @@ class _ConectarScreenState extends State<ConectarScreen> {
                 style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
               ),
               const SizedBox(height: 22),
-              if (showWalletButton) ...[
-                PrimaryButton(
-                  _waitingWallet
-                      ? 'Esperando tu billetera…'
-                      : (walletUsable ? 'Conectar billetera' : 'Preparando…'),
-                  onTap: _waitingWallet || _busy || !walletUsable
-                      ? null
-                      : _conectarBilletera,
-                ),
-                if (_waitingWallet) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    'Aprueba la conexión en tu billetera y vuelve a Waliki.',
-                    textAlign: TextAlign.center,
-                    style: wk(size: 12, weight: 500, color: kInkSoft),
+              if (!soloDireccion) ...[
+                if (_walletFailed)
+                  // No silent downgrade: if AppKit cannot start on this phone,
+                  // say it and offer to try again. Quietly showing an address
+                  // field instead is what left owners unable to sign.
+                  _ReintentarBilletera(
+                    onRetry: () {
+                      setState(() {
+                        _walletFailed = false;
+                        _walletReady = false;
+                        _error = null;
+                      });
+                      _prepararBilletera();
+                    },
+                  )
+                else ...[
+                  PrimaryButton(
+                    _waitingWallet
+                        ? 'Esperando tu billetera…'
+                        : (walletUsable ? 'Conectar billetera' : 'Preparando…'),
+                    onTap: _waitingWallet || _busy || !walletUsable
+                        ? null
+                        : _conectarBilletera,
                   ),
-                ],
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    const Expanded(child: Divider(color: kLine)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'o pega tu dirección',
-                        style: wk(size: 12, weight: 600, color: kInkSoft),
-                      ),
+                  if (_waitingWallet) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      'Aprueba la conexión en tu billetera y vuelve a Waliki.',
+                      textAlign: TextAlign.center,
+                      style: wk(size: 12, weight: 500, color: kInkSoft),
                     ),
-                    const Expanded(child: Divider(color: kLine)),
                   ],
-                ),
-                const SizedBox(height: 16),
-              ] else
+                ],
+              ] else ...[
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
@@ -226,45 +234,48 @@ class _ConectarScreenState extends State<ConectarScreen> {
                     ),
                   ),
                 ),
-              TextField(
-                controller: _ctrl,
-                style: wk(size: 13, weight: 500, mono: true),
-                onChanged: (_) => setState(() => _error = null),
-                decoration: InputDecoration(
-                  hintText: '0x…',
-                  hintStyle: wk(
-                    size: 13,
-                    weight: 500,
-                    color: kInkSoft,
-                    mono: true,
-                  ),
-                  filled: true,
-                  fillColor: kSurface,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: kLine, width: 1.5),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: kBrand, width: 1.5),
-                  ),
-                  suffixIcon: IconButton(
-                    tooltip: 'Pegar',
-                    icon: const Icon(
-                      Icons.content_paste_rounded,
-                      size: 19,
+                TextField(
+                  controller: _ctrl,
+                  style: wk(size: 13, weight: 500, mono: true),
+                  onChanged: (_) => setState(() => _error = null),
+                  decoration: InputDecoration(
+                    hintText: '0x…',
+                    hintStyle: wk(
+                      size: 13,
+                      weight: 500,
                       color: kInkSoft,
+                      mono: true,
                     ),
-                    onPressed: _paste,
+                    filled: true,
+                    fillColor: kSurface,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: kLine, width: 1.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: kBrand, width: 1.5),
+                    ),
+                    suffixIcon: IconButton(
+                      tooltip: 'Pegar',
+                      icon: const Icon(
+                        Icons.content_paste_rounded,
+                        size: 19,
+                        color: kInkSoft,
+                      ),
+                      onPressed: _paste,
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 14),
+                PrimaryButton('Conectar', onTap: _busy ? null : _connectPasted),
+              ],
               if (_error != null) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -280,30 +291,40 @@ class _ConectarScreenState extends State<ConectarScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 14),
-              if (showWalletButton)
-                SizedBox(
-                  height: 48,
-                  child: OutlinedButton(
-                    onPressed: _busy ? null : _connectPasted,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: kLine, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: Text(
-                      'Usar esta dirección',
-                      style: wk(size: 14, weight: 700, color: kBrandInk),
-                    ),
-                  ),
-                )
-              else
-                PrimaryButton('Conectar', onTap: _busy ? null : _connectPasted),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Shown when AppKit could not start on this phone. Deliberately a dead end
+/// with a retry: the old behaviour was to quietly offer an address field
+/// instead, which produced owners who could see their shop and never sign for
+/// it.
+class _ReintentarBilletera extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _ReintentarBilletera({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: kSurface2,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Text(
+          'No se pudo preparar la conexión con tu billetera. Revisa que tengas '
+          'MetaMask instalada y que haya internet.',
+          style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.5),
+        ),
+      ),
+      const SizedBox(height: 14),
+      PrimaryButton('Reintentar', onTap: onRetry),
+    ],
+  );
 }

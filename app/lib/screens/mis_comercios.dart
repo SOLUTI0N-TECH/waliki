@@ -5,6 +5,7 @@ import '../session.dart';
 import '../ui.dart';
 import '../skeletons.dart';
 import '../wallet.dart';
+import '../wallet_gate.dart';
 import 'crear_comercio.dart';
 import 'home.dart';
 import 'cajeros.dart';
@@ -61,6 +62,19 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
     );
   }
 
+  Future<void> _reconectar() async {
+    final problema = await requireWallet(context, widget.session);
+    if (!mounted) return;
+    if (problema != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(problema)));
+      return;
+    }
+    // The owner may have come back on another account, which changes whose
+    // shops these are.
+    setState(_reload);
+  }
+
   Future<void> _salir() async {
     await Wallet.instance.disconnect();
     await widget.session.clear();
@@ -95,24 +109,47 @@ class _MisComerciosScreenState extends State<MisComerciosScreen> {
                 color: kSurface2,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.account_balance_wallet_rounded,
-                    size: 17,
-                    color: kBrand,
-                  ),
-                  const SizedBox(width: 9),
-                  Text(
-                    'Conectado como',
-                    style: wk(size: 12.5, weight: 500, color: kInkSoft),
-                  ),
-                  const Spacer(),
-                  Text(
-                    short(owner),
-                    style: wk(size: 12.5, weight: 600, mono: true),
-                  ),
-                ],
+              // The address alone used to be the whole story, and it comes off
+              // disk: it said "Conectado" to owners whose wallet session was
+              // long gone, which is why signing surprised them. The live flag
+              // is the one that decides whether the next signature will work.
+              child: ValueListenableBuilder<String?>(
+                valueListenable: Wallet.instance.connection,
+                builder: (context, _, _) {
+                  final live = Wallet.instance.isConnected;
+                  return Row(
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet_rounded,
+                        size: 17,
+                        color: live ? kBrand : kInkSoft,
+                      ),
+                      const SizedBox(width: 9),
+                      Text(
+                        live ? 'Conectado como' : 'Billetera desconectada',
+                        style: wk(size: 12.5, weight: 500, color: kInkSoft),
+                      ),
+                      const Spacer(),
+                      if (live)
+                        Text(
+                          short(owner),
+                          style: wk(size: 12.5, weight: 600, mono: true),
+                        )
+                      else
+                        GestureDetector(
+                          onTap: _reconectar,
+                          child: Text(
+                            'Reconectar',
+                            style: wk(
+                              size: 12.5,
+                              weight: 700,
+                              color: kBrandInk,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
             Expanded(

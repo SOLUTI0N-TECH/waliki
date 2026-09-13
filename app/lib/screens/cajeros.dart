@@ -8,6 +8,7 @@ import '../session.dart';
 import '../ui.dart';
 import '../vault.dart';
 import '../wallet.dart';
+import '../wallet_gate.dart';
 import 'nueva_caja.dart';
 
 /// The owner's list of registers: which ones can charge, which were revoked,
@@ -186,7 +187,13 @@ class _CajerosScreenState extends State<CajerosScreen> {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true || !mounted) return;
+
+    final problema = await requireWallet(context, widget.session);
+    if (problema != null) {
+      if (mounted) setState(() => _error = problema);
+      return;
+    }
 
     try {
       await Wallet.instance.removeCashier(
@@ -198,7 +205,7 @@ class _CajerosScreenState extends State<CajerosScreen> {
       await _confirm([caja]);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'No se pudo dar de baja: $e');
+      setState(() => _error = walletErrorMessage(e));
     }
   }
 

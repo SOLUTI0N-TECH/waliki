@@ -11,6 +11,7 @@ import '../session.dart';
 import '../ui.dart';
 import '../vault.dart';
 import '../wallet.dart';
+import '../wallet_gate.dart';
 
 /// The owner creates a register: the phone generates the identity, the owner
 /// authorizes it on-chain with `addCashier`, and out comes a short code.
@@ -50,6 +51,15 @@ class _NuevaCajaScreenState extends State<NuevaCajaScreen> {
   }
 
   Future<void> _crear() async {
+    // Before generating anything: after a restart the wallet has to be woken
+    // up, and this used to fail outright with "se perdió la conexión".
+    final problema = await requireWallet(context, widget.session);
+    if (problema != null) {
+      if (mounted) setState(() => _error = problema);
+      return;
+    }
+    if (!mounted) return;
+
     final label = _label.text.trim();
     final identity = deriveCashier(newCajaSeed());
 
@@ -75,7 +85,7 @@ class _NuevaCajaScreenState extends State<NuevaCajaScreen> {
       if (!mounted) return;
       setState(() {
         _step = _Step.form;
-        _error = 'No se pudo enviar la autorización: $e';
+        _error = walletErrorMessage(e);
       });
       return;
     }

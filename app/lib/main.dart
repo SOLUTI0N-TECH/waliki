@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'screens/cajero_setup.dart';
@@ -61,6 +62,26 @@ typedef _Boot = ({Session session, bool cashierReady});
 
 class _BootstrapState extends State<Bootstrap> {
   late final Future<_Boot> _boot = _load();
+
+  @override
+  void initState() {
+    super.initState();
+    // An owner reopening the app lands straight on MisComercios, so neither
+    // Welcome nor Conectar ever builds and nobody used to create the modal.
+    // The WalletConnect session was still on disk the whole time; AppKit
+    // restores it here, and until it finishes ensureConnected() covers.
+    if (kIsWeb) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final session = await _boot;
+      if (session.session.role != Role.duenio || !mounted) return;
+      try {
+        await Wallet.instance.init(context);
+      } catch (_) {
+        // Unsupported platform or a flaky relay: ensureConnected() retries on
+        // the next signature instead of leaving the app degraded for good.
+      }
+    });
+  }
 
   /// A linked register also has to still HAVE its identity. Android restores
   /// preferences from a backup but not the Keystore key that opens the vault,
