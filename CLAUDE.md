@@ -72,14 +72,17 @@ código va a tocar custodia de fondos o dinero fiat → **detente y pregunta**.
   (decisión del fundador 11/09/2026): sin origen, sin antigüedad y sin refresco manual — el cajero no
   decide nada ahí. La última tasa buena queda en `session.rate` como respaldo sin señal. Cotización
   que **vence** (~15 min), congelada en el QR.
-- **La caja cobra en Bs o en USDT** (switch arriba del monto). **Son dos rieles distintos**: en
-  USDT el cliente firma desde su billetera y el QR es un enlace a la pagina de pago; en Bs el QR
-  lo emite `backend/` (imagen PNG en base64) y la app consulta el estado cada 3 s. La pantalla
-  verde en Bs espera `transferred`, no `completed`: el banco puede tener los bolivianos mientras
-  el comercio todavia no tiene los tUSDT. En la app **arranca siempre en USDT**
-  al entrar a Cobrar (decisión del fundador 12/09/2026: es el caso más común); la caja web recuerda
-  la última elección. En USDT el monto tecleado ES el cobro: el enlace del QR viaja **sin `bs`, sin `r` y sin `exp`** — no hay cotización
-  que pueda vencer. `Pay.tsx` ya condicionaba esos parámetros, así que la pasarela lo soporta sola.
+- **La caja cobra por dos rieles, con el monto visto en las dos monedas** (12/09/2026, pedido del
+  fundador: hay negocios que ponen precio solo en Bs y otros solo en $). Ya no hay switch: arriba
+  van **dos campos, USDT y Bs**, con botón de intercambiar. Se teclea en el de arriba y el de abajo
+  muestra la conversión a la tasa (`app/lib/charge_amounts.dart`); el campo tecleado queda como
+  fuente, así intercambiar nunca re-deriva un monto de su propio redondeo. Abajo, **dos botones**:
+  **Cobrar USDT** (on-chain: el QR es un enlace a la página de pago y el cliente firma desde su
+  billetera) y **Cobrar Bs** (el QR bancario lo emite `backend/`, la app consulta cada 3 s y el
+  dueño recibe tUSDT; la pantalla verde espera `transferred`, no `completed`). Arranca con USDT
+  arriba. Por on-chain, un precio tecleado en $ viaja **sin `bs`, `r` ni `exp`** (no hay cotización
+  que venza); uno tecleado en Bs lleva la tasa y vence a los 15 min. `Pay.tsx` ya condicionaba esos
+  parámetros. La caja web sigue con su switch.
 - Extras del MVP: registro on-chain con **candado de la dirección de cobro** · red forzada a Base
   Sepolia en la página de pago · faucet de tUSDT integrado · trazabilidad (hash/bloque/
   confirmaciones/explorador) · semáforo de conexión + estado "pendiente de verificación" · kit demo

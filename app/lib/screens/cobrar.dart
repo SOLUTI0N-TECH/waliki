@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../chain.dart';
+import '../charge_amounts.dart';
 import '../config.dart';
 import '../qr_service.dart';
 import '../rate.dart';
@@ -28,8 +29,9 @@ class _Sale {
   const _Sale(this.id, this.amountUnits, this.bs, this.rate, this.exp);
 }
 
-/// The charge flow: amount in Bs -> QR -> green screen driven by the chain.
-/// Read-only by design: the customer pays on the web page the QR opens.
+/// The charge flow: one amount seen in dollars and bolivianos, then one of
+/// two rails — the customer's wallet on-chain, or a bank QR in Bs — then the
+/// green screen once the shop actually has the dollars.
 class CobrarScreen extends StatefulWidget {
   final Session session;
   final int merchantId;
@@ -45,7 +47,6 @@ class CobrarScreen extends StatefulWidget {
 
 class _CobrarScreenState extends State<CobrarScreen> {
   _Phase _phase = _Phase.entry;
-  String _amount = '';
   _Sale? _sale;
   Payment? _payment;
 
@@ -62,9 +63,14 @@ class _CobrarScreenState extends State<CobrarScreen> {
   String? _error;
   Merchant? _merchant;
 
-  /// Every visit to the register starts in USDT: charging in dollars is the
-  /// common case, and a cashier who wants Bs is one tap away.
-  bool _usdt = true;
+  /// The field on top is the one the keypad types into. Every visit starts
+  /// with dollars there — the common case — and the swap button brings
+  /// bolivianos up for shops that price in Bs.
+  Money _top = Money.usd;
+
+  /// Which field holds what the cashier typed; the other is derived from it.
+  Money? _source;
+  String _text = '';
   bool _late = false;
   Timer? _clock;
   Timer? _poll;
@@ -119,53 +125,40 @@ class _CobrarScreenState extends State<CobrarScreen> {
     super.dispose();
   }
 
-  double? get _typed {
-    final v = double.tryParse(_amount.replaceAll(',', '.'));
-    return (v != null && v > 0) ? v : null;
-  }
-
   double? get _rate {
     final v = double.tryParse(widget.session.rate.replaceAll(',', '.'));
     return (v != null && v > 0) ? v : null;
   }
 
-  /// What the customer will actually be charged on-chain, or null while the
-  /// entry is not usable. In USDT the typed figure is already the amount.
-  BigInt? _units(double? typed, double? rate) {
-    if (typed == null) return null;
-    if (!_usdt && rate == null) return null;
-    final units = BigInt.from(
-      (_usdt ? typed * 1e6 : typed / rate! * 1e6).round(),
-    );
-    return units > BigInt.zero ? units : null;
-  }
+  ChargeAmounts get _amounts =>
+      ChargeAmounts(source: _source, text: _text, rate: _rate);
 
   void _key(String k) {
     setState(() {
-      if (k == '<') {
-        if (_amount.isNotEmpty) {
-          _amount = _amount.substring(0, _amount.length - 1);
-        }
-      } else if (k == ',') {
-        if (!_amount.contains(',') && _amount.isNotEmpty) _amount += ',';
-      } else if (_amount.length < 9) {
-        _amount += k;
+      if (_source != _top) {
+        // The top field was showing a conversion. Typing replaces it the way
+        // a selected text field would, and makes it the figure that counts.
+        _source = _top;
+        _text = k == '<' ? '' : ChargeAmounts.press('', k);
+      } else {
+        _text = ChargeAmounts.press(_text, k);
       }
+      _error = null;
     });
   }
 
-  Future<void> _cobrar() async {
-    if (_creating) return;
-    final typed = _typed;
-    final rate = _rate;
-    final units = _units(typed, rate);
-    if (units == null) return;
+  /// Swaps which currency sits on top. The typed figure keeps counting until
+  /// the cashier types again, so a swap never re-derives an amount from its
+  /// own rounding.
+  void _swap() =>
+      setState(() => _top = _top == Money.usd ? Money.bs : Money.usd);
 
-    // The sale id carries the register that issued it, and the router refuses
-    // to settle a sale whose register is not authorized. Without an identity
-    // the QR would still look perfect, the customer would sign, and the
-    // payment would revert: they would believe they paid and this screen
-    // would wait forever.
+  /// The sale id carries the register that issued it, and the router refuses
+  /// to settle a sale whose register is not authorized. Without an identity
+  /// the QR would still look perfect, the customer would sign, and the
+  /// payment would revert: they would believe they paid and this screen
+  /// would wait forever.
+  String? _newSaleId() {
     final cashier = widget.session.cashierAddress;
     if (cashier == null || cashier.isEmpty) {
       setState(
@@ -173,20 +166,46 @@ class _CobrarScreenState extends State<CobrarScreen> {
             'Esta caja no está vinculada al comercio. Vuelve a ingresar '
             'el código que te dio el dueño.',
       );
-      return;
+      return null;
     }
-    final id = buildSaleId(cashier);
+    return buildSaleId(cashier);
+  }
 
-    // In USDT the customer signs the payment from their own wallet: the QR is
-    // a link to the payment page and nothing has to be issued for it.
-    if (_usdt) {
-      _sale = _Sale(id, units, null, null, null);
-      _startWaiting();
-      return;
-    }
+  /// On-chain rail: the QR is a link to the payment page and the customer's
+  /// wallet pays the USDT straight to the shop. Nothing has to be issued.
+  void _cobrarOnchain() {
+    if (_creating) return;
+    final amounts = _amounts;
+    final units = amounts.units;
+    if (units == null) return;
+    final id = _newSaleId();
+    if (id == null) return;
+    // A price typed in dollars is final. One typed in bolivianos became
+    // dollars at today's rate, so it travels with that quote and a deadline.
+    _sale = amounts.source == Money.bs
+        ? _Sale(
+            id,
+            units,
+            amounts.bs,
+            amounts.rate,
+            DateTime.now().millisecondsSinceEpoch ~/ 1000 +
+                WalikiConfig.quoteMinutes * 60,
+          )
+        : _Sale(id, units, null, null, null);
+    _startWaiting();
+  }
 
-    // In Bs the bank QR is issued by the backend, which releases the tUSDT to
-    // the shop once the bank confirms the transfer.
+  /// Bank rail: the backend issues a QR in bolivianos and, once the bank
+  /// confirms it, releases the dollars to the shop's own wallet.
+  Future<void> _cobrarBs() async {
+    if (_creating) return;
+    final amounts = _amounts;
+    final units = amounts.units;
+    final bs = amounts.bs;
+    if (units == null || bs == null || bs < 0.01) return;
+    final id = _newSaleId();
+    if (id == null) return;
+
     setState(() {
       _creating = true;
       _error = null;
@@ -196,7 +215,7 @@ class _CobrarScreenState extends State<CobrarScreen> {
       if (!mounted) return;
       _merchant = merchant;
       final (qr, image) = await QrService.create(
-        bs: typed!,
+        bs: bs,
         units: units,
         destinationWallet: merchant.payout,
         merchantId: widget.merchantId,
@@ -215,8 +234,8 @@ class _CobrarScreenState extends State<CobrarScreen> {
       _sale = _Sale(
         id,
         units,
-        typed,
-        rate,
+        bs,
+        amounts.rate,
         expiry.millisecondsSinceEpoch ~/ 1000,
       );
       _startWaiting();
@@ -308,7 +327,8 @@ class _CobrarScreenState extends State<CobrarScreen> {
     _poll?.cancel();
     setState(() {
       _phase = _Phase.entry;
-      _amount = '';
+      _text = '';
+      _source = null;
       _sale = null;
       _payment = null;
       _paidUnits = null;
@@ -335,69 +355,58 @@ class _CobrarScreenState extends State<CobrarScreen> {
   }
 
   Widget _buildEntry() {
-    final units = _units(_typed, _rate);
+    final amounts = _amounts;
+    final units = amounts.units;
+    final bs = amounts.bs;
+    final canOnchain = !_creating && units != null;
+    final canBs = !_creating && units != null && bs != null && bs >= 0.01;
+    final bottom = _top == Money.usd ? Money.bs : Money.usd;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       child: Column(
         children: [
-          _CurrencySwitch(
-            usdt: _usdt,
-            onChanged: (v) {
-              // Bs 100 is not $100: clear rather than reinterpret the figure.
-              setState(() {
-                _usdt = v;
-                _amount = '';
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-          if (!_usdt) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(
-                color: kSurface,
-                border: Border.all(color: kLine),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              // Read-only: the rate comes from the market on its own, so there
-              // is nothing for the cashier to decide here.
-              child: Text(
-                'Tasa  Bs ${_rate?.toStringAsFixed(2) ?? '—'}  =  1 USDT',
-                style: wk(size: 13.5, weight: 600, tabular: true),
-              ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: kSurface,
+              border: Border.all(color: kLine),
+              borderRadius: BorderRadius.circular(999),
             ),
-            const SizedBox(height: 16),
-          ] else
-            const SizedBox(height: 10),
-          Text(
-            _usdt ? 'MONTO EN USDT' : 'MONTO EN BOLIVIANOS',
-            style: wk(size: 11, weight: 700, color: kInkSoft, tracking: 0.04),
+            // Read-only: the rate comes from the market on its own, so there
+            // is nothing for the cashier to decide here.
+            child: Text(
+              'Tasa  Bs ${_rate?.toStringAsFixed(2) ?? '—'}  =  1 USDT',
+              style: wk(size: 13.5, weight: 600, tabular: true),
+            ),
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
+          const SizedBox(height: 14),
+          Stack(
+            alignment: Alignment.center,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 9),
-                child: Text(
-                  _usdt ? '\$ ' : 'Bs ',
-                  style: wk(size: 26, weight: 600, color: kInkSoft),
-                ),
+              Column(
+                children: [
+                  _AmountField(
+                    money: _top,
+                    value: _shown(_top, amounts),
+                    active: true,
+                    derived: amounts.source != _top,
+                  ),
+                  const SizedBox(height: 10),
+                  _AmountField(
+                    money: bottom,
+                    value: _shown(bottom, amounts),
+                    active: false,
+                    derived: amounts.source != bottom,
+                    onTap: _swap,
+                  ),
+                ],
               ),
-              Text(_amount.isEmpty ? '0' : _amount, style: wkNum(size: 58)),
+              _SwapButton(onTap: _swap),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            // Priced in USDT there is no second figure: what was typed is what
-            // is charged.
-            (!_usdt && units != null) ? '≈ ${fmtUsdt(units)} tUSDT' : ' ',
-            style: wk(size: 16.5, weight: 700, color: kBrandInk, tabular: true),
-          ),
-          const Spacer(),
-          _AmountKeypad(onKey: _key),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          Expanded(child: _AmountKeypad(onKey: _key)),
+          const SizedBox(height: 12),
           if (_error != null) ...[
             Text(
               _error!,
@@ -406,13 +415,47 @@ class _CobrarScreenState extends State<CobrarScreen> {
             ),
             const SizedBox(height: 10),
           ],
-          PrimaryButton(
-            _creating ? 'Generando QR…' : 'Cobrar — generar QR',
-            onTap: (units != null && !_creating) ? _cobrar : null,
+          Row(
+            children: [
+              Expanded(
+                child: _RailButton(
+                  title: 'Cobrar USDT',
+                  subtitle: 'Billetera del cliente',
+                  icon: Icons.account_balance_wallet_rounded,
+                  onTap: canOnchain ? _cobrarOnchain : null,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _RailButton(
+                  title: _creating ? 'Generando…' : 'Cobrar Bs',
+                  subtitle: 'QR bancario',
+                  icon: Icons.account_balance_rounded,
+                  solid: true,
+                  busy: _creating,
+                  onTap: canBs ? _cobrarBs : null,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  /// What a field shows: the figure as typed, or its conversion. A dash means
+  /// the conversion needs a rate the register does not have yet.
+  String _shown(Money money, ChargeAmounts amounts) {
+    if (money == amounts.source && amounts.text.isNotEmpty) {
+      return amounts.text;
+    }
+    if (amounts.isEmpty) return '0';
+    if (money == Money.bs) {
+      final bs = amounts.bs;
+      return bs == null ? '—' : fmtNum(bs);
+    }
+    final units = amounts.units;
+    return units == null ? '—' : fmtUsdt(units);
   }
 
   Widget _buildQr() {
@@ -704,73 +747,222 @@ class _CobrarScreenState extends State<CobrarScreen> {
   );
 }
 
-/// Bs or USDT. Which one the register prices in changes what the cashier
-/// types, so it sits above the amount instead of hiding in a menu.
-class _CurrencySwitch extends StatelessWidget {
-  final bool usdt;
-  final ValueChanged<bool> onChanged;
-  const _CurrencySwitch({required this.usdt, required this.onChanged});
+/// One currency of the amount. The top field is the one the keypad types
+/// into; tapping the other brings it up.
+class _AmountField extends StatelessWidget {
+  final Money money;
+  final String value;
+  final bool active;
+
+  /// Showing a conversion rather than what the cashier typed.
+  final bool derived;
+  final VoidCallback? onTap;
+  const _AmountField({
+    required this.money,
+    required this.value,
+    required this.active,
+    required this.derived,
+    this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(4),
-    decoration: BoxDecoration(
-      color: kSurface2,
-      border: Border.all(color: kLine),
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Row(
-      children: [
-        // USDT first: it is the mode the register opens in.
-        _half('\$', 'USDT', usdt, () => onChanged(true)),
-        _half('Bs', 'Bolivianos', !usdt, () => onChanged(false)),
-      ],
-    ),
-  );
-
-  Widget _half(String symbol, String label, bool on, VoidCallback tap) =>
-      Expanded(
-        child: GestureDetector(
-          onTap: tap,
-          behavior: HitTestBehavior.opaque,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(vertical: 9),
-            decoration: BoxDecoration(
-              color: on ? kSurface : Colors.transparent,
-              borderRadius: BorderRadius.circular(999),
-              boxShadow: on
-                  ? const [
-                      BoxShadow(
-                        color: Color(0x140B1220),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ]
-                  : null,
+  Widget build(BuildContext context) {
+    final usd = money == Money.usd;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        height: 74,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: active ? kSurface : kSurface2,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: active ? kBrand : kLine,
+            width: active ? 1.6 : 1,
+          ),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: kBrand.withValues(alpha: 0.12),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: active ? kBrandTint : kSurface,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                usd ? '\$' : 'Bs',
+                style: wk(size: usd ? 17 : 13.5, weight: 800, color: kBrandInk),
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  symbol,
-                  style: wk(
-                    size: 15,
-                    weight: 800,
-                    color: on ? kBrandInk : kInkSoft,
+            const SizedBox(width: 10),
+            Text(
+              usd ? 'USDT' : 'Bolivianos',
+              style: wk(
+                size: 13.5,
+                weight: 700,
+                color: active ? kInk : kInkSoft,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: wkNum(
+                    size: active ? 32 : 24,
+                    color: derived ? kInkSoft : kInk,
                   ),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: wk(size: 13, weight: 600, color: on ? kInk : kInkSoft),
-                ),
-              ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SwapButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SwapButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Intercambiar monedas',
+    child: Material(
+      color: kSurface,
+      shape: const CircleBorder(side: BorderSide(color: kLine)),
+      elevation: 2,
+      shadowColor: const Color(0x220B1220),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: const SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(Icons.swap_vert_rounded, color: kBrand, size: 22),
+        ),
+      ),
+    ),
+  );
+}
+
+/// One way to charge. Both rails end in dollars for the shop; what changes is
+/// how the customer pays — from their own wallet, or in bolivianos by bank QR.
+class _RailButton extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  /// Navy instead of the brand gradient, so the two rails read apart.
+  final bool solid;
+  final bool busy;
+  final VoidCallback? onTap;
+  const _RailButton({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    this.solid = false,
+    this.busy = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final radius = BorderRadius.circular(14);
+    final ink = enabled ? Colors.white : kDisabledInk;
+    return SizedBox(
+      height: 64,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: enabled && !solid ? kActionGradient : null,
+          color: !enabled ? kDisabled : (solid ? kBrandInk : null),
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                    color: (solid ? kBrandInk : kBrandIndigo).withValues(
+                      alpha: 0.28,
+                    ),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ]
+              : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  if (busy)
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: ink,
+                      ),
+                    )
+                  else
+                    Icon(icon, color: ink, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: wk(size: 15, weight: 700, color: ink),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: wk(
+                            size: 11,
+                            weight: 500,
+                            color: ink.withValues(alpha: 0.85),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _PulseDot extends StatefulWidget {
@@ -818,39 +1010,63 @@ class _AmountKeypad extends StatelessWidget {
   final void Function(String) onKey;
   const _AmountKeypad({required this.onKey});
 
+  static const _rows = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+    [',', '0', '<'],
+  ];
+
   @override
-  Widget build(BuildContext context) {
-    const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '0', '<'];
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 1.9,
-      children: [
-        for (final k in keys)
-          Material(
-            color: kSurface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-              side: const BorderSide(color: kLine),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(15),
-              onTap: () => onKey(k),
-              child: Center(
-                child: k == '<'
-                    ? const Icon(
-                        Icons.backspace_outlined,
-                        color: kInkSoft,
-                        size: 21,
-                      )
-                    : Text(k, style: wk(size: 23, weight: 600, tabular: true)),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      const gap = 10.0;
+      // Keys take the height the screen leaves, within reason: big enough to
+      // hit on a small phone, never slabs on a tall one.
+      final keyHeight = ((constraints.maxHeight - gap * 3) / 4).clamp(
+        38.0,
+        62.0,
+      );
+      return Align(
+        alignment: Alignment.bottomCenter,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var r = 0; r < _rows.length; r++) ...[
+              if (r > 0) const SizedBox(height: gap),
+              SizedBox(
+                height: keyHeight,
+                child: Row(
+                  children: [
+                    for (var c = 0; c < 3; c++) ...[
+                      if (c > 0) const SizedBox(width: gap),
+                      Expanded(child: _keyButton(_rows[r][c])),
+                    ],
+                  ],
+                ),
               ),
-            ),
-          ),
-      ],
-    );
-  }
+            ],
+          ],
+        ),
+      );
+    },
+  );
+
+  Widget _keyButton(String k) => Material(
+    key: ValueKey('keypad-$k'),
+    color: kSurface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),
+      side: const BorderSide(color: kLine),
+    ),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(15),
+      onTap: () => onKey(k),
+      child: Center(
+        child: k == '<'
+            ? const Icon(Icons.backspace_outlined, color: kInkSoft, size: 21)
+            : Text(k, style: wk(size: 23, weight: 600, tabular: true)),
+      ),
+    ),
+  );
 }
