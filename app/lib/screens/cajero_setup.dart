@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,6 +9,7 @@ import '../session.dart';
 import '../ui.dart';
 import '../vault.dart';
 import 'cajero_pin.dart';
+import 'escanear_caja.dart';
 
 /// The cashier turns this device into a register by typing the code the owner
 /// handed them.
@@ -109,6 +111,27 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
     });
   }
 
+  /// The camera only exists on a phone: mobile_scanner has a web build, but on
+  /// web this screen is the mockup path and the wallet half of the app does not
+  /// work there either.
+  bool get _puedeEscanear => !kIsWeb;
+
+  /// Reading the code instead of typing it. Sixteen characters copied by eye
+  /// from one phone to another is where this flow used to lose people.
+  Future<void> _escanear() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const EscanearCajaScreen()),
+    );
+    if (code == null || !mounted) return;
+    setState(() {
+      _ctrl.text = code;
+      _error = null;
+    });
+    // Straight through: the scan already is the confirmation, and asking for
+    // one more tap after it would undo the point of scanning.
+    await _vincular();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,14 +159,19 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Ingresa el código de caja',
+                _puedeEscanear
+                    ? 'Vincula esta caja'
+                    : 'Ingresa el código de caja',
                 textAlign: TextAlign.center,
                 style: wk(size: 21, weight: 800, tracking: -0.03),
               ),
               const SizedBox(height: 8),
               Text(
-                'Es el código que te dio el dueño del comercio. '
-                'Se ve así: 7-K3NQ-7X2F-PM8T-QWRJ',
+                _puedeEscanear
+                    ? 'Escanea el QR que te muestra el dueño del comercio. '
+                          'Si prefieres, escribe el código a mano.'
+                    : 'Es el código que te dio el dueño del comercio. '
+                          'Se ve así: 7-K3NQ-7X2F-PM8T-QWRJ',
                 textAlign: TextAlign.center,
                 style: wk(size: 13, weight: 500, color: kInkSoft, height: 1.55),
               ),
@@ -170,6 +198,27 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
                 ),
               ],
               const SizedBox(height: 24),
+              if (_puedeEscanear) ...[
+                PrimaryButton(
+                  'Escanear código QR',
+                  onTap: _busy ? null : _escanear,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: kLine, height: 1)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'o escríbelo',
+                        style: wk(size: 12, weight: 600, color: kInkSoft),
+                      ),
+                    ),
+                    const Expanded(child: Divider(color: kLine, height: 1)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
               TextField(
                 controller: _ctrl,
                 textAlign: TextAlign.center,
@@ -256,10 +305,34 @@ class _CajeroSetupScreenState extends State<CajeroSetupScreen> {
                 ),
               ],
               const SizedBox(height: 16),
-              PrimaryButton(
-                _busy ? 'Verificando…' : 'Vincular caja',
-                onTap: _busy ? null : _vincular,
-              ),
+              // Two filled buttons on one screen would say nothing about which
+              // one to use, so where scanning exists this is the quiet one.
+              if (_puedeEscanear)
+                SizedBox(
+                  height: 54,
+                  child: OutlinedButton(
+                    onPressed: _busy ? null : _vincular,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: kLine, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      _busy ? 'Verificando…' : 'Vincular caja',
+                      style: wk(
+                        size: 15,
+                        weight: 700,
+                        color: _busy ? kDisabledInk : kBrandInk,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                PrimaryButton(
+                  _busy ? 'Verificando…' : 'Vincular caja',
+                  onTap: _busy ? null : _vincular,
+                ),
               const SizedBox(height: 20),
               Row(
                 children: [

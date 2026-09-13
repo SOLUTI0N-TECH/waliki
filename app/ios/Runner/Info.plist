@@ -26,6 +26,11 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Without this key iOS kills the app the first time the register code
+	     scanner touches the camera. iOS is not built today (there is no
+	     Podfile), but the crash would be silent until someone tries. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Waliki usa la camara para leer el codigo QR de tu caja.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

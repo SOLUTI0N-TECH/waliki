@@ -102,6 +102,38 @@ void main() {
     });
   });
 
+  group('cajaCodeFromScan', () {
+    // This is the scanner's only filter. A phone pointed at a counter reads
+    // whatever is on it, so what this function accepts is exactly what can
+    // turn that phone into a register.
+    test('devuelve el código canónico, venga como venga en el QR', () {
+      expect(
+        cajaCodeFromScan('7-KWE3-MYSD-BT7G-9HN1'),
+        '7-KWE3-MYSD-BT7G-9HN1',
+      );
+      expect(cajaCodeFromScan('7kwe3mysdbt7g9hn1'), '7-KWE3-MYSD-BT7G-9HN1');
+      expect(
+        cajaCodeFromScan('  W7-kwe3 mysd bt7g 9hn1  '),
+        '7-KWE3-MYSD-BT7G-9HN1',
+      );
+    });
+
+    test('rechaza cualquier otro QR que se le cruce', () {
+      for (final otro in [
+        // The shop's own payment QR, which is going to be on the same counter
+        'https://waliki-gules.vercel.app/pay/'
+            '0x68b7e67700f4f013c731b8e6095b8e1ee0cefa51a1b2c3?m=1&a=1500000',
+        'WIFI:S:Tienda;T:WPA;P:12345678;;',
+        'https://waliki.ficct.online',
+        '0x68b7e67700f4f013c731b8e6095b8e1ee0cefa51',
+        '74821', // el código viejo
+        '',
+      ]) {
+        expect(cajaCodeFromScan(otro), isNull, reason: otro);
+      }
+    });
+  });
+
   test('formatCajaCodeInput deja solo lo que puede formar un código', () {
     expect(formatCajaCodeInput('7-kwe3 mysd'), '7-KWE3MYSD');
     expect(formatCajaCodeInput('¡7!—kwe3'), '7KWE3');

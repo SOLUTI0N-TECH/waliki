@@ -4,6 +4,13 @@
          RPC node and every chain read fails silently. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Reading the register code QR (lib/screens/escanear_caja.dart). The
+         mobile_scanner manifest declares both of these too and they would merge
+         on their own, but this is where anyone auditing what Waliki asks for
+         will look. Not required: a phone without a camera still types the code. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+
     <!-- The register identity lives in the Keystore, which Auto Backup cannot
          export. Restoring on a new phone would bring the preferences back and
          leave a register that thinks it is linked and has no identity. -->

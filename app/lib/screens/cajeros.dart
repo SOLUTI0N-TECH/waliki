@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../caja_qr.dart';
 import '../chain.dart';
 import '../session.dart';
 import '../ui.dart';
@@ -356,6 +357,22 @@ class _CajaTile extends StatelessWidget {
                     Icons.copy_rounded,
                     size: 17,
                     color: kInkSoft,
+                  ),
+                ),
+                // Copying only helps on this phone. Between two phones the QR
+                // is the handover, and this is the way back to it once the
+                // owner left the screen that created the register.
+                IconButton(
+                  tooltip: 'Mostrar QR',
+                  onPressed: () => mostrarCajaQr(
+                    context,
+                    code: caja.code!,
+                    label: caja.displayName,
+                  ),
+                  icon: const Icon(
+                    Icons.qr_code_2_rounded,
+                    size: 19,
+                    color: kBrandInk,
                   ),
                 ),
               ],

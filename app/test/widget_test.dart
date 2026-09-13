@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:waliki_app/caja_code.dart';
 import 'package:waliki_app/cashier_identity.dart';
 import 'package:waliki_app/main.dart';
+import 'package:waliki_app/screens/cajero_setup.dart';
 import 'package:waliki_app/session.dart';
 import 'package:waliki_app/skeletons.dart';
 import 'package:waliki_app/vault.dart';
@@ -65,7 +66,10 @@ void main() {
     await tester.pumpWidget(const WalikiApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Ingresa el código de caja'), findsOneWidget);
+    // By type, not by heading: that copy changes with the platform now that
+    // the phone leads with the scanner, and what this test is about is which
+    // screen the app landed on.
+    expect(find.byType(CajeroSetupScreen), findsOneWidget);
     expect(find.textContaining('perdió su vinculación'), findsOneWidget);
   });
 

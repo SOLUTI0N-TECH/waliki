@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../caja_code.dart';
+import '../caja_qr.dart';
 import '../cashier_identity.dart';
 import '../chain.dart';
 import '../session.dart';
@@ -336,6 +337,11 @@ class _NuevaCajaScreenState extends State<NuevaCajaScreen> {
                     mono: true,
                   ),
                 ),
+                const SizedBox(height: 18),
+                // The code stays the source of truth -- it is what gets read
+                // out loud over the phone. The QR is the fast path for when
+                // both phones are on the same counter.
+                CajaQr(code: code),
               ],
             ),
           ),
@@ -373,7 +379,7 @@ class _NuevaCajaScreenState extends State<NuevaCajaScreen> {
                 Text('Cómo lo usa el cajero', style: wk(size: 14, weight: 700)),
                 const SizedBox(height: 10),
                 _paso('1', 'Abre Waliki en su teléfono y elige "Soy cajero".'),
-                _paso('2', 'Escribe el código $code.'),
+                _paso('2', 'Escanea el QR de arriba, o escribe $code.'),
                 _paso('3', 'Elige su propio PIN y ya puede cobrar.'),
               ],
             ),

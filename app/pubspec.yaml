@@ -38,6 +38,11 @@ dependencies:
   http: ^1.2.2
   # QR rendering for the charge screen (pure Dart, no native code)
   qr_flutter: ^4.1.0
+  # Reading QRs back: the register code the owner hands over is sixteen
+  # characters typed from one phone's screen into another. This is the only
+  # native dependency in the app (CameraX + ML Kit on Android), and it ships the
+  # barcode model bundled, so it works on a phone without Play Services.
+  mobile_scanner: ^7.4.0
   shared_preferences: ^2.5.5
   url_launcher: ^6.3.2
   reown_appkit: ^1.9.0

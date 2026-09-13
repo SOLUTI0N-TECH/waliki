@@ -66,6 +66,19 @@ String encodeCajaCode(int merchantId, Uint8List seed) {
   return (merchantId: merchantId, seed: seed);
 }
 
+/// What the camera hands us, turned into a canonical code, or null when that
+/// QR is not a register code at all -- a payment QR, a WiFi QR, a URL.
+///
+/// The scanner has no other filter: a phone pointed at a shelf reads whatever
+/// is on it, so this is what decides between "linked" and "keep looking". It
+/// re-encodes rather than returning the raw string, so the field always shows
+/// the canonical form no matter how the QR spelled it.
+String? cajaCodeFromScan(String raw) {
+  final parsed = parseCajaCode(raw);
+  if (parsed == null) return null;
+  return encodeCajaCode(parsed.merchantId, parsed.seed);
+}
+
 /// Upper-cases and drops anything that could never belong to a code. Used by
 /// the text field so what the cashier types looks like what the owner reads
 /// out; the parser is the one that decides whether it is valid.
